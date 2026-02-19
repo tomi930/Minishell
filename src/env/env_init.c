@@ -66,4 +66,3 @@ void    free_env(t_env *head)
         free(holder);
     }
 }
-
