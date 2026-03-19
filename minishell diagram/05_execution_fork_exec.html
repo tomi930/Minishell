@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minishell - Level 5: Execution (fork + execve)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #e6edf3; padding: 40px; line-height: 1.7; }
+  h1 { font-size: 2.2rem; color: #58a6ff; margin-bottom: 10px; }
+  .subtitle { color: #8b949e; font-size: 1.1rem; margin-bottom: 40px; }
+  .concept-box { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 30px; margin-bottom: 30px; }
+  .concept-box h2 { color: #79c0ff; margin-bottom: 15px; font-size: 1.4rem; }
+  .concept-box p { color: #c9d1d9; margin-bottom: 12px; }
+  .highlight { color: #ffa657; font-weight: 600; }
+  .diagram { background: #0d1117; border: 2px solid #30363d; border-radius: 10px; padding: 30px; margin: 20px 0; overflow-x: auto; }
+  .analogy { background: #1c2333; border-left: 4px solid #58a6ff; padding: 20px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+  .analogy strong { color: #58a6ff; }
+  .level-badge { display: inline-block; background: #f85149; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
+  .code-block { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; font-family: 'Fira Code', monospace; color: #c9d1d9; margin: 15px 0; font-size: 0.9rem; white-space: pre; overflow-x: auto; line-height: 1.8; }
+  .code-comment { color: #8b949e; }
+  .code-keyword { color: #ff7b72; }
+  .code-func { color: #d2a8ff; }
+  .code-string { color: #a5d6ff; }
+  .key-concept { background: #ffa65720; border: 1px solid #ffa657; border-radius: 8px; padding: 15px 20px; margin: 15px 0; }
+  .key-concept strong { color: #ffa657; }
+</style>
+</head>
+<body>
+
+<span class="level-badge">LEVEL 5 - DEEP DIVE</span>
+<h1>⚡ Execution: fork() + execve()</h1>
+<p class="subtitle">The moment your shell actually DOES something — the most important syscalls to understand</p>
+
+<div class="concept-box">
+  <h2>The Big Idea: Why fork()?</h2>
+  <p>Here's the problem: when you run <code>ls</code>, you need to <span class="highlight">replace your shell's process with the ls program</span>. But if you do that, your shell is GONE — it can't show the prompt again!</p>
+  <p>The solution: <span class="highlight">create a copy of yourself first</span> (fork), then replace the COPY with ls (execve). Your original shell waits safely.</p>
+
+  <div class="analogy">
+    <strong>📋 Clone Analogy:</strong> Imagine you need to go on a dangerous mission. Instead of going yourself, you create a perfect clone. The clone goes on the mission (runs ls), and you wait at home (waitpid). When the clone is done, you get the report (exit status) and continue your life. If the clone dies... no big deal, you're still here!
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>fork() — Creating a Clone</h2>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 450" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="30" text-anchor="middle" fill="#58a6ff" font-size="18" font-weight="bold">What fork() Does — Step by Step</text>
+
+      <!-- BEFORE FORK -->
+      <text x="150" y="70" text-anchor="middle" fill="#8b949e" font-size="14" font-weight="bold">BEFORE fork()</text>
+
+      <rect x="50" y="85" width="200" height="100" rx="10" fill="#1f6feb15" stroke="#1f6feb" stroke-width="2"/>
+      <text x="150" y="110" text-anchor="middle" fill="#58a6ff" font-size="14" font-weight="bold">Your Shell</text>
+      <text x="150" y="130" text-anchor="middle" fill="#8b949e" font-size="11">PID: 1234</text>
+      <text x="150" y="150" text-anchor="middle" fill="#8b949e" font-size="11">Has: env, variables,</text>
+      <text x="150" y="168" text-anchor="middle" fill="#8b949e" font-size="11">open fds, memory...</text>
+
+      <!-- BIG ARROW -->
+      <text x="420" y="130" text-anchor="middle" fill="#ffa657" font-size="30">→</text>
+      <text x="420" y="160" text-anchor="middle" fill="#ffa657" font-size="14" font-weight="bold">fork()</text>
+
+      <!-- AFTER FORK -->
+      <text x="680" y="70" text-anchor="middle" fill="#8b949e" font-size="14" font-weight="bold">AFTER fork()</text>
+
+      <!-- Parent -->
+      <rect x="530" y="85" width="200" height="100" rx="10" fill="#1f6feb15" stroke="#1f6feb" stroke-width="2"/>
+      <text x="630" y="110" text-anchor="middle" fill="#58a6ff" font-size="13" font-weight="bold">PARENT (shell)</text>
+      <text x="630" y="130" text-anchor="middle" fill="#8b949e" font-size="11">PID: 1234</text>
+      <text x="630" y="150" text-anchor="middle" fill="#3fb950" font-size="11">fork() returned: 5678</text>
+      <text x="630" y="170" text-anchor="middle" fill="#8b949e" font-size="11">(child's PID)</text>
+
+      <!-- Child -->
+      <rect x="530" y="210" width="200" height="100" rx="10" fill="#3fb95015" stroke="#3fb950" stroke-width="2"/>
+      <text x="630" y="235" text-anchor="middle" fill="#3fb950" font-size="13" font-weight="bold">CHILD (clone)</text>
+      <text x="630" y="255" text-anchor="middle" fill="#8b949e" font-size="11">PID: 5678</text>
+      <text x="630" y="275" text-anchor="middle" fill="#ffa657" font-size="11">fork() returned: 0</text>
+      <text x="630" y="295" text-anchor="middle" fill="#8b949e" font-size="11">(how it knows it's the child!)</text>
+
+      <!-- IDENTICAL label -->
+      <text x="780" y="180" fill="#d2a8ff" font-size="12" font-weight="bold">IDENTICAL</text>
+      <text x="780" y="198" fill="#d2a8ff" font-size="12" font-weight="bold">copies!</text>
+      <line x1="760" y1="135" x2="760" y2="260" stroke="#d2a8ff" stroke-width="1" stroke-dasharray="4,3"/>
+
+      <!-- Key insight -->
+      <rect x="50" y="340" width="800" height="90" rx="10" fill="#ffa65715" stroke="#ffa657" stroke-width="1.5"/>
+      <text x="450" y="370" text-anchor="middle" fill="#ffa657" font-size="15" font-weight="bold">🔑 The Key: fork() returns DIFFERENT values!</text>
+      <text x="450" y="395" text-anchor="middle" fill="#c9d1d9" font-size="13">In the PARENT → returns child's PID (positive number)</text>
+      <text x="450" y="415" text-anchor="middle" fill="#c9d1d9" font-size="13">In the CHILD → returns 0 (that's how the child knows it's the child!)</text>
+    </svg>
+  </div>
+
+  <div class="key-concept">
+    <strong>🧠 Mind-blowing fact:</strong> After fork(), BOTH processes execute the same code. The <code>if (pid == 0)</code> check is how the child and parent take different paths. It's the same code, but <code>pid</code> has a different value in each process!
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>execve() — Replacing the Clone</h2>
+  <p>Once the child exists, we call <span class="highlight">execve()</span> to replace it with the actual program (like <code>/bin/ls</code>).</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="25" text-anchor="middle" fill="#58a6ff" font-size="16" font-weight="bold">execve() Replaces the Process Image</text>
+
+      <!-- Child before execve -->
+      <rect x="30" y="55" width="220" height="120" rx="10" fill="#3fb95015" stroke="#3fb950" stroke-width="2"/>
+      <text x="140" y="80" text-anchor="middle" fill="#3fb950" font-size="13" font-weight="bold">CHILD (clone of shell)</text>
+      <text x="140" y="105" text-anchor="middle" fill="#8b949e" font-size="11">Memory: shell code</text>
+      <text x="140" y="125" text-anchor="middle" fill="#8b949e" font-size="11">Still looks like minishell</text>
+      <text x="140" y="145" text-anchor="middle" fill="#8b949e" font-size="11">PID: 5678</text>
+      <text x="140" y="165" text-anchor="middle" fill="#ffa657" font-size="11">About to call execve()...</text>
+
+      <!-- Arrow -->
+      <text x="350" y="115" text-anchor="middle" fill="#ffa657" font-size="13" font-weight="bold">execve(</text>
+      <text x="350" y="135" text-anchor="middle" fill="#a5d6ff" font-family="monospace" font-size="11">"/bin/ls",</text>
+      <text x="350" y="152" text-anchor="middle" fill="#a5d6ff" font-family="monospace" font-size="11">["ls","-la"],</text>
+      <text x="350" y="169" text-anchor="middle" fill="#a5d6ff" font-family="monospace" font-size="11">envp)</text>
+
+      <line x1="430" y1="120" x2="490" y2="120" stroke="#ffa657" stroke-width="2"/>
+      <polygon points="490,115 505,120 490,125" fill="#ffa657"/>
+
+      <!-- Child after execve -->
+      <rect x="510" y="55" width="220" height="120" rx="10" fill="#f8514915" stroke="#f85149" stroke-width="2"/>
+      <text x="620" y="80" text-anchor="middle" fill="#f85149" font-size="13" font-weight="bold">CHILD (now it's ls!)</text>
+      <text x="620" y="105" text-anchor="middle" fill="#8b949e" font-size="11">Memory: ls program code</text>
+      <text x="620" y="125" text-anchor="middle" fill="#8b949e" font-size="11">Shell code is GONE forever</text>
+      <text x="620" y="145" text-anchor="middle" fill="#8b949e" font-size="11">PID: 5678 (same!)</text>
+      <text x="620" y="165" text-anchor="middle" fill="#3fb950" font-size="11">Running ls now!</text>
+
+      <!-- Note -->
+      <rect x="200" y="210" width="500" height="70" rx="8" fill="#f8514915" stroke="#f85149"/>
+      <text x="450" y="235" text-anchor="middle" fill="#f85149" font-size="13" font-weight="bold">⚠ execve() NEVER RETURNS on success!</text>
+      <text x="450" y="258" text-anchor="middle" fill="#c9d1d9" font-size="12">The shell code in the child is completely replaced.</text>
+      <text x="450" y="275" text-anchor="middle" fill="#c9d1d9" font-size="12">If execve() returns, something went WRONG (command not found).</text>
+    </svg>
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>The Complete Flow for: <code style="color: #ffa657;">ls -la</code></h2>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 550" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="a5" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#ffa657"/>
+        </marker>
+      </defs>
+
+      <!-- Timeline -->
+      <text x="30" y="25" fill="#8b949e" font-size="12">TIME →</text>
+      <line x1="90" y1="20" x2="870" y2="20" stroke="#30363d" stroke-width="1"/>
+
+      <!-- Parent lane -->
+      <text x="20" y="80" fill="#58a6ff" font-size="12" font-weight="bold" transform="rotate(-90, 20, 80)">PARENT</text>
+      <rect x="90" y="50" width="120" height="50" rx="8" fill="#1f6feb15" stroke="#1f6feb"/>
+      <text x="150" y="72" text-anchor="middle" fill="#58a6ff" font-size="11">shell running</text>
+      <text x="150" y="88" text-anchor="middle" fill="#8b949e" font-size="9">PID 1234</text>
+
+      <!-- fork() moment -->
+      <rect x="230" y="50" width="80" height="50" rx="8" fill="#ffa65730" stroke="#ffa657"/>
+      <text x="270" y="80" text-anchor="middle" fill="#ffa657" font-size="11" font-weight="bold">fork()</text>
+
+      <!-- Parent waiting -->
+      <rect x="330" y="50" width="300" height="50" rx="8" fill="#1f6feb08" stroke="#1f6feb" stroke-dasharray="5,5"/>
+      <text x="480" y="72" text-anchor="middle" fill="#58a6ff" font-size="11">waitpid(child_pid)...</text>
+      <text x="480" y="88" text-anchor="middle" fill="#8b949e" font-size="9">💤 sleeping until child finishes</text>
+
+      <!-- Parent resumes -->
+      <rect x="650" y="50" width="200" height="50" rx="8" fill="#1f6feb15" stroke="#1f6feb"/>
+      <text x="750" y="72" text-anchor="middle" fill="#58a6ff" font-size="11">child done! get exit status</text>
+      <text x="750" y="88" text-anchor="middle" fill="#3fb950" font-size="9">show prompt again</text>
+
+      <!-- Fork split line -->
+      <line x1="270" y1="100" x2="270" y2="150" stroke="#ffa657" stroke-width="2" stroke-dasharray="4,3"/>
+      <text x="275" y="130" fill="#ffa657" font-size="10">clone!</text>
+
+      <!-- Child lane -->
+      <text x="20" y="210" fill="#3fb950" font-size="12" font-weight="bold" transform="rotate(-90, 20, 210)">CHILD</text>
+
+      <rect x="270" y="155" width="80" height="50" rx="8" fill="#3fb95015" stroke="#3fb950"/>
+      <text x="310" y="175" text-anchor="middle" fill="#3fb950" font-size="11">born!</text>
+      <text x="310" y="190" text-anchor="middle" fill="#8b949e" font-size="9">PID 5678</text>
+
+      <!-- Child: setup redirections -->
+      <rect x="370" y="155" width="90" height="50" rx="8" fill="#d2a8ff15" stroke="#d2a8ff"/>
+      <text x="415" y="175" text-anchor="middle" fill="#d2a8ff" font-size="10">setup</text>
+      <text x="415" y="190" text-anchor="middle" fill="#d2a8ff" font-size="10">redirections</text>
+
+      <!-- Child: execve -->
+      <rect x="480" y="155" width="80" height="50" rx="8" fill="#ffa65730" stroke="#ffa657"/>
+      <text x="520" y="180" text-anchor="middle" fill="#ffa657" font-size="11" font-weight="bold">execve()</text>
+
+      <!-- Child: running ls -->
+      <rect x="580" y="155" width="60" height="50" rx="8" fill="#f8514915" stroke="#f85149"/>
+      <text x="610" y="175" text-anchor="middle" fill="#f85149" font-size="10">ls runs</text>
+      <text x="610" y="190" text-anchor="middle" fill="#8b949e" font-size="9">output!</text>
+
+      <!-- Child: exits -->
+      <text x="655" y="185" text-anchor="middle" fill="#f85149" font-size="14">💀</text>
+      <text x="670" y="195" fill="#8b949e" font-size="9">exit(0)</text>
+
+      <!-- Connect child death to parent wake -->
+      <line x1="655" y1="155" x2="655" y2="105" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="4,3"/>
+
+      <!-- Arrows between child steps -->
+      <line x1="350" y1="180" x2="365" y2="180" stroke="#ffa657" stroke-width="1.5" marker-end="url(#a5)"/>
+      <line x1="460" y1="180" x2="475" y2="180" stroke="#ffa657" stroke-width="1.5" marker-end="url(#a5)"/>
+      <line x1="560" y1="180" x2="575" y2="180" stroke="#ffa657" stroke-width="1.5" marker-end="url(#a5)"/>
+
+      <!-- PATH resolution -->
+      <text x="450" y="260" text-anchor="middle" fill="#d2a8ff" font-size="15" font-weight="bold">How does execve() find "ls"?</text>
+
+      <rect x="50" y="280" width="800" height="220" rx="10" fill="#1c2333" stroke="#30363d"/>
+
+      <text x="70" y="310" fill="#79c0ff" font-size="13" font-weight="bold">PATH Resolution:</text>
+      <text x="70" y="335" fill="#c9d1d9" font-size="12">The user types "ls". But execve() needs the FULL path: "/bin/ls"</text>
+      <text x="70" y="358" fill="#c9d1d9" font-size="12">Your shell must search through $PATH to find it!</text>
+
+      <text x="90" y="390" fill="#ffa657" font-family="monospace" font-size="12">$PATH = /usr/local/bin:/usr/bin:/bin</text>
+
+      <text x="110" y="418" fill="#8b949e" font-size="11">1. Try /usr/local/bin/ls → does it exist? access() → ❌ No</text>
+      <text x="110" y="438" fill="#8b949e" font-size="11">2. Try /usr/bin/ls → does it exist? access() → ❌ No</text>
+      <text x="110" y="458" fill="#3fb950" font-size="11">3. Try /bin/ls → does it exist? access() → ✅ YES! Use this!</text>
+
+      <text x="70" y="487" fill="#ffa657" font-size="12">⚠ If user types "/bin/ls" directly → skip PATH search, use as-is</text>
+      <text x="70" y="487" fill="#ffa657" font-size="12">⚠ If command starts with "/" or "./" → skip PATH search, use as-is</text>
+    </svg>
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>Builtins: The Exception!</h2>
+  <p>Some commands <span class="highlight">must NOT be forked</span>. They must run in the parent process because they change the shell's own state:</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 180" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="25" text-anchor="middle" fill="#58a6ff" font-size="16" font-weight="bold">Builtins — Run in Parent (no fork!)</text>
+
+      <rect x="20" y="45" width="120" height="55" rx="8" fill="#d2a8ff15" stroke="#d2a8ff"/>
+      <text x="80" y="68" text-anchor="middle" fill="#d2a8ff" font-size="13" font-weight="bold">cd</text>
+      <text x="80" y="88" text-anchor="middle" fill="#8b949e" font-size="10">changes PWD</text>
+
+      <rect x="155" y="45" width="120" height="55" rx="8" fill="#d2a8ff15" stroke="#d2a8ff"/>
+      <text x="215" y="68" text-anchor="middle" fill="#d2a8ff" font-size="13" font-weight="bold">export</text>
+      <text x="215" y="88" text-anchor="middle" fill="#8b949e" font-size="10">modifies env</text>
+
+      <rect x="290" y="45" width="120" height="55" rx="8" fill="#d2a8ff15" stroke="#d2a8ff"/>
+      <text x="350" y="68" text-anchor="middle" fill="#d2a8ff" font-size="13" font-weight="bold">unset</text>
+      <text x="350" y="88" text-anchor="middle" fill="#8b949e" font-size="10">removes env var</text>
+
+      <rect x="425" y="45" width="120" height="55" rx="8" fill="#d2a8ff15" stroke="#d2a8ff"/>
+      <text x="485" y="68" text-anchor="middle" fill="#d2a8ff" font-size="13" font-weight="bold">exit</text>
+      <text x="485" y="88" text-anchor="middle" fill="#8b949e" font-size="10">kills the shell</text>
+
+      <rect x="560" y="45" width="120" height="55" rx="8" fill="#3fb95015" stroke="#3fb950"/>
+      <text x="620" y="68" text-anchor="middle" fill="#3fb950" font-size="13" font-weight="bold">echo</text>
+      <text x="620" y="88" text-anchor="middle" fill="#8b949e" font-size="10">can be either*</text>
+
+      <rect x="695" y="45" width="90" height="55" rx="8" fill="#3fb95015" stroke="#3fb950"/>
+      <text x="740" y="68" text-anchor="middle" fill="#3fb950" font-size="13" font-weight="bold">pwd</text>
+      <text x="740" y="88" text-anchor="middle" fill="#8b949e" font-size="10">can be either*</text>
+
+      <rect x="800" y="45" width="80" height="55" rx="8" fill="#3fb95015" stroke="#3fb950"/>
+      <text x="840" y="68" text-anchor="middle" fill="#3fb950" font-size="13" font-weight="bold">env</text>
+      <text x="840" y="88" text-anchor="middle" fill="#8b949e" font-size="10">can be either*</text>
+
+      <text x="450" y="140" text-anchor="middle" fill="#ffa657" font-size="12">Why? If you fork cd, the CHILD changes directory... then dies. Parent is still in the old directory!</text>
+      <text x="450" y="160" text-anchor="middle" fill="#8b949e" font-size="11">*echo, pwd, env don't modify state, but running them as builtins is faster (no fork overhead)</text>
+    </svg>
+  </div>
+</div>
+
+</body>
+</html>

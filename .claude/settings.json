@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmd.exe /c \"python --version\")",
+      "Bash(cmd.exe /c \"py --version\")",
+      "Read(//c/Users/Thomas/AppData/Local/Programs//**)"
+    ]
+  }
+}

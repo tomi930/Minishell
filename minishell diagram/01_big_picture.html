@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minishell - Level 1: The Big Picture</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #e6edf3; padding: 40px; line-height: 1.7; }
+  h1 { font-size: 2.2rem; color: #58a6ff; margin-bottom: 10px; }
+  .subtitle { color: #8b949e; font-size: 1.1rem; margin-bottom: 40px; }
+  .concept-box { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 30px; margin-bottom: 30px; }
+  .concept-box h2 { color: #79c0ff; margin-bottom: 15px; font-size: 1.4rem; }
+  .concept-box p { color: #c9d1d9; margin-bottom: 12px; }
+  .highlight { color: #ffa657; font-weight: 600; }
+  .diagram { background: #0d1117; border: 2px solid #30363d; border-radius: 10px; padding: 30px; margin: 20px 0; overflow-x: auto; }
+  svg { max-width: 100%; height: auto; }
+  .analogy { background: #1c2333; border-left: 4px solid #58a6ff; padding: 20px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+  .analogy strong { color: #58a6ff; }
+  .code-example { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 15px 20px; font-family: 'Fira Code', monospace; color: #79c0ff; margin: 10px 0; font-size: 0.95rem; }
+  .level-badge { display: inline-block; background: #238636; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 15px; }
+</style>
+</head>
+<body>
+
+<span class="level-badge">LEVEL 1 - EASY</span>
+<h1>🐚 What Is a Shell?</h1>
+<p class="subtitle">Understanding the big picture before writing a single line of code</p>
+
+<div class="concept-box">
+  <h2>The Shell = The Middleman</h2>
+  <p>A shell is just a <span class="highlight">program that sits between YOU and the operating system</span>. When you type a command, the shell figures out what you want, finds the right program, and asks the OS to run it.</p>
+
+  <div class="analogy">
+    <strong>🍔 Restaurant Analogy:</strong> Think of a restaurant. You (the user) tell the waiter (the shell) what you want. The waiter translates your order, sends it to the kitchen (the OS/kernel), and brings back the result (output). The waiter doesn't cook — it just manages communication.
+  </div>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 280" xmlns="http://www.w3.org/2000/svg">
+      <!-- User -->
+      <rect x="20" y="80" width="160" height="120" rx="15" fill="#1f6feb" opacity="0.2" stroke="#1f6feb" stroke-width="2"/>
+      <text x="100" y="125" text-anchor="middle" fill="#58a6ff" font-size="16" font-weight="bold">👤 YOU</text>
+      <text x="100" y="150" text-anchor="middle" fill="#8b949e" font-size="13">(the user)</text>
+      <text x="100" y="172" text-anchor="middle" fill="#8b949e" font-size="12">Types: ls -la</text>
+
+      <!-- Arrow 1 -->
+      <line x1="185" y1="140" x2="280" y2="140" stroke="#ffa657" stroke-width="2" stroke-dasharray="8,4"/>
+      <polygon points="280,135 295,140 280,145" fill="#ffa657"/>
+      <text x="232" y="130" text-anchor="middle" fill="#ffa657" font-size="11">command</text>
+
+      <!-- Shell -->
+      <rect x="300" y="50" width="200" height="180" rx="15" fill="#238636" opacity="0.15" stroke="#238636" stroke-width="2"/>
+      <text x="400" y="95" text-anchor="middle" fill="#3fb950" font-size="16" font-weight="bold">🐚 SHELL</text>
+      <text x="400" y="118" text-anchor="middle" fill="#8b949e" font-size="12">(your minishell!)</text>
+      <text x="400" y="145" text-anchor="middle" fill="#c9d1d9" font-size="12">1. Reads input</text>
+      <text x="400" y="165" text-anchor="middle" fill="#c9d1d9" font-size="12">2. Understands it</text>
+      <text x="400" y="185" text-anchor="middle" fill="#c9d1d9" font-size="12">3. Executes it</text>
+      <text x="400" y="210" text-anchor="middle" fill="#c9d1d9" font-size="12">4. Shows result</text>
+
+      <!-- Arrow 2 -->
+      <line x1="505" y1="140" x2="600" y2="140" stroke="#ffa657" stroke-width="2" stroke-dasharray="8,4"/>
+      <polygon points="600,135 615,140 600,145" fill="#ffa657"/>
+      <text x="553" y="130" text-anchor="middle" fill="#ffa657" font-size="11">syscalls</text>
+
+      <!-- OS/Kernel -->
+      <rect x="620" y="80" width="200" height="120" rx="15" fill="#da3633" opacity="0.15" stroke="#da3633" stroke-width="2"/>
+      <text x="720" y="120" text-anchor="middle" fill="#f85149" font-size="16" font-weight="bold">⚙️ KERNEL</text>
+      <text x="720" y="145" text-anchor="middle" fill="#8b949e" font-size="12">(operating system)</text>
+      <text x="720" y="170" text-anchor="middle" fill="#8b949e" font-size="12">Runs the actual program</text>
+
+      <!-- Return arrow -->
+      <path d="M 620,200 L 400,250 L 180,200" fill="none" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="5,5"/>
+      <polygon points="180,195 165,200 180,205" fill="#3fb950"/>
+      <text x="400" y="268" text-anchor="middle" fill="#3fb950" font-size="11">output returned to you</text>
+    </svg>
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>What Bash Does (and what you'll recreate)</h2>
+  <p>When you open a terminal, you're usually running <span class="highlight">bash</span> (or zsh). Your minishell will do the same core things:</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 400" xmlns="http://www.w3.org/2000/svg">
+      <!-- Title -->
+      <text x="450" y="30" text-anchor="middle" fill="#58a6ff" font-size="18" font-weight="bold">What a Shell Must Handle</text>
+
+      <!-- Simple Commands -->
+      <rect x="30" y="60" width="250" height="90" rx="10" fill="#1c2333" stroke="#30363d" stroke-width="1.5"/>
+      <text x="155" y="85" text-anchor="middle" fill="#79c0ff" font-size="14" font-weight="bold">Simple Commands</text>
+      <text x="155" y="108" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">ls -la</text>
+      <text x="155" y="128" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">echo "hello"</text>
+      <text x="155" y="140" text-anchor="middle" fill="#3fb950" font-size="11">✓ run a program</text>
+
+      <!-- Pipes -->
+      <rect x="320" y="60" width="250" height="90" rx="10" fill="#1c2333" stroke="#30363d" stroke-width="1.5"/>
+      <text x="445" y="85" text-anchor="middle" fill="#79c0ff" font-size="14" font-weight="bold">Pipes</text>
+      <text x="445" y="108" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">ls | grep .c</text>
+      <text x="445" y="128" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">cat file | wc -l</text>
+      <text x="445" y="140" text-anchor="middle" fill="#3fb950" font-size="11">✓ connect programs</text>
+
+      <!-- Redirections -->
+      <rect x="610" y="60" width="260" height="90" rx="10" fill="#1c2333" stroke="#30363d" stroke-width="1.5"/>
+      <text x="740" y="85" text-anchor="middle" fill="#79c0ff" font-size="14" font-weight="bold">Redirections</text>
+      <text x="740" y="108" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">echo hi > file.txt</text>
+      <text x="740" y="128" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">cat < input.txt</text>
+      <text x="740" y="140" text-anchor="middle" fill="#3fb950" font-size="11">✓ redirect I/O</text>
+
+      <!-- Env Variables -->
+      <rect x="30" y="180" width="250" height="90" rx="10" fill="#1c2333" stroke="#30363d" stroke-width="1.5"/>
+      <text x="155" y="205" text-anchor="middle" fill="#79c0ff" font-size="14" font-weight="bold">Environment Vars</text>
+      <text x="155" y="228" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">echo $HOME</text>
+      <text x="155" y="248" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">export FOO=bar</text>
+      <text x="155" y="260" text-anchor="middle" fill="#3fb950" font-size="11">✓ store/expand values</text>
+
+      <!-- Builtins -->
+      <rect x="320" y="180" width="250" height="90" rx="10" fill="#1c2333" stroke="#30363d" stroke-width="1.5"/>
+      <text x="445" y="205" text-anchor="middle" fill="#79c0ff" font-size="14" font-weight="bold">Built-in Commands</text>
+      <text x="445" y="228" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">cd /home</text>
+      <text x="445" y="248" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">exit, pwd, unset</text>
+      <text x="445" y="260" text-anchor="middle" fill="#3fb950" font-size="11">✓ shell does it itself</text>
+
+      <!-- Signals -->
+      <rect x="610" y="180" width="260" height="90" rx="10" fill="#1c2333" stroke="#30363d" stroke-width="1.5"/>
+      <text x="740" y="205" text-anchor="middle" fill="#79c0ff" font-size="14" font-weight="bold">Signals</text>
+      <text x="740" y="228" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">Ctrl+C → interrupt</text>
+      <text x="740" y="248" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">Ctrl+D → exit</text>
+      <text x="740" y="260" text-anchor="middle" fill="#3fb950" font-size="11">✓ handle user signals</text>
+
+      <!-- Quote Handling -->
+      <rect x="175" y="300" width="250" height="80" rx="10" fill="#1c2333" stroke="#30363d" stroke-width="1.5"/>
+      <text x="300" y="325" text-anchor="middle" fill="#79c0ff" font-size="14" font-weight="bold">Quote Handling</text>
+      <text x="300" y="350" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">"double" vs 'single'</text>
+      <text x="300" y="370" text-anchor="middle" fill="#3fb950" font-size="11">✓ different expansion rules</text>
+
+      <!-- Exit Status -->
+      <rect x="465" y="300" width="250" height="80" rx="10" fill="#1c2333" stroke="#30363d" stroke-width="1.5"/>
+      <text x="590" y="325" text-anchor="middle" fill="#79c0ff" font-size="14" font-weight="bold">Exit Status ($?)</text>
+      <text x="590" y="350" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">echo $? → 0 or 127...</text>
+      <text x="590" y="370" text-anchor="middle" fill="#3fb950" font-size="11">✓ track command success</text>
+    </svg>
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>Why "Mini" Shell?</h2>
+  <p>Real bash has <span class="highlight">~70,000 lines of code</span> and handles scripting, arrays, functions, arithmetic, job control, and much more. Your minishell focuses on the <span class="highlight">core mechanics</span> — the fundamental concepts that make a shell work. Once you understand these, you understand how ALL shells work under the hood.</p>
+
+  <div class="analogy">
+    <strong>🏗️ Building Analogy:</strong> Bash is a skyscraper. Minishell is building a solid 2-story house. Same foundation (fork, exec, pipes, redirections), same engineering principles. If you can build the house, you understand how the skyscraper stands.
+  </div>
+</div>
+
+</body>
+</html>

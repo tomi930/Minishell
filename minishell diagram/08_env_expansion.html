@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minishell - Level 8: Environment Variables & Expansion</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #e6edf3; padding: 40px; line-height: 1.7; }
+  h1 { font-size: 2.2rem; color: #58a6ff; margin-bottom: 10px; }
+  .subtitle { color: #8b949e; font-size: 1.1rem; margin-bottom: 40px; }
+  .concept-box { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 30px; margin-bottom: 30px; }
+  .concept-box h2 { color: #79c0ff; margin-bottom: 15px; font-size: 1.4rem; }
+  .concept-box p { color: #c9d1d9; margin-bottom: 12px; }
+  .highlight { color: #ffa657; font-weight: 600; }
+  .diagram { background: #0d1117; border: 2px solid #30363d; border-radius: 10px; padding: 30px; margin: 20px 0; overflow-x: auto; }
+  .analogy { background: #1c2333; border-left: 4px solid #58a6ff; padding: 20px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+  .analogy strong { color: #58a6ff; }
+  .level-badge { display: inline-block; background: #ffa657; color: #0d1117; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<span class="level-badge">LEVEL 8 - MEDIUM</span>
+<h1>🔤 Environment Variables & Expansion</h1>
+<p class="subtitle">How $HOME becomes /home/tomi and why $? tracks exit codes</p>
+
+<div class="concept-box">
+  <h2>What Are Environment Variables?</h2>
+  <p>Env vars are <span class="highlight">key=value pairs</span> that every process inherits from its parent. They carry configuration info: where your home is, what language to use, where to find programs.</p>
+
+  <div class="analogy">
+    <strong>🧬 DNA Analogy:</strong> Environment variables are like DNA. When a parent process creates a child (fork), the child inherits a COPY of all env vars — just like biological inheritance. The child can modify its copy without affecting the parent. <code>export</code> is like adding a new gene. <code>unset</code> is like removing one.
+  </div>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 280" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="25" text-anchor="middle" fill="#58a6ff" font-size="16" font-weight="bold">Your Shell's Environment (envp / char **env)</text>
+
+      <!-- Env array visualization -->
+      <rect x="100" y="50" width="700" height="210" rx="10" fill="#1c2333" stroke="#30363d"/>
+
+      <rect x="120" y="70" width="300" height="30" rx="5" fill="#1f6feb15" stroke="#1f6feb"/>
+      <text x="270" y="90" text-anchor="middle" fill="#58a6ff" font-family="monospace" font-size="12">HOME=/home/tomi</text>
+
+      <rect x="120" y="108" width="300" height="30" rx="5" fill="#3fb95015" stroke="#3fb950"/>
+      <text x="270" y="128" text-anchor="middle" fill="#3fb950" font-family="monospace" font-size="12">PATH=/usr/bin:/bin</text>
+
+      <rect x="120" y="146" width="300" height="30" rx="5" fill="#d2a8ff15" stroke="#d2a8ff"/>
+      <text x="270" y="166" text-anchor="middle" fill="#d2a8ff" font-family="monospace" font-size="12">USER=tomi</text>
+
+      <rect x="120" y="184" width="300" height="30" rx="5" fill="#ffa65715" stroke="#ffa657"/>
+      <text x="270" y="204" text-anchor="middle" fill="#ffa657" font-family="monospace" font-size="12">PWD=/home/tomi/minishell</text>
+
+      <rect x="120" y="222" width="300" height="28" rx="5" fill="#8b949e15" stroke="#8b949e"/>
+      <text x="270" y="241" text-anchor="middle" fill="#8b949e" font-family="monospace" font-size="12">... more vars ...</text>
+
+      <!-- How to store -->
+      <text x="620" y="85" text-anchor="middle" fill="#79c0ff" font-size="13" font-weight="bold">Storage Options:</text>
+      <text x="620" y="110" fill="#c9d1d9" font-size="11">1. char **env (array of strings)</text>
+      <text x="620" y="130" fill="#8b949e" font-size="10">   Simple but resize = realloc</text>
+      <text x="620" y="155" fill="#c9d1d9" font-size="11">2. Linked list of key/value</text>
+      <text x="620" y="175" fill="#8b949e" font-size="10">   Easier add/remove</text>
+      <text x="620" y="200" fill="#3fb950" font-size="11">   ← most 42 students use this</text>
+      <text x="620" y="230" fill="#ffa657" font-size="10">⚠ Convert back to char** for execve!</text>
+    </svg>
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>Variable Expansion: When $ Becomes a Value</h2>
+  <p>Expansion happens <span class="highlight">BEFORE execution</span>. The command never sees the <code>$</code> — it receives the expanded value.</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 400" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="25" text-anchor="middle" fill="#58a6ff" font-size="16" font-weight="bold">Expansion Examples</text>
+
+      <!-- Example 1 -->
+      <rect x="30" y="45" width="840" height="60" rx="8" fill="#1c2333" stroke="#30363d"/>
+      <text x="50" y="70" fill="#c9d1d9" font-family="monospace" font-size="13">echo "Hello $USER, your home is $HOME"</text>
+      <text x="450" y="78" text-anchor="middle" fill="#ffa657" font-size="10">↓ expansion ↓</text>
+      <text x="50" y="95" fill="#3fb950" font-family="monospace" font-size="13">echo "Hello tomi, your home is /home/tomi"</text>
+
+      <!-- Example 2: single quotes block expansion -->
+      <rect x="30" y="115" width="840" height="60" rx="8" fill="#1c2333" stroke="#30363d"/>
+      <text x="50" y="140" fill="#c9d1d9" font-family="monospace" font-size="13">echo 'Hello $USER'</text>
+      <text x="350" y="148" fill="#f85149" font-size="10">↓ NO expansion (single quotes!) ↓</text>
+      <text x="50" y="165" fill="#f85149" font-family="monospace" font-size="13">echo 'Hello $USER'   →   output: Hello $USER</text>
+
+      <!-- Example 3: $? -->
+      <rect x="30" y="185" width="840" height="60" rx="8" fill="#1c2333" stroke="#30363d"/>
+      <text x="50" y="210" fill="#c9d1d9" font-family="monospace" font-size="13">ls nonexistent ; echo $?</text>
+      <text x="450" y="218" text-anchor="middle" fill="#ffa657" font-size="10">↓ $? = exit status of last command ↓</text>
+      <text x="50" y="237" fill="#ffa657" font-family="monospace" font-size="13">echo 2    (because ls returned error code 2)</text>
+
+      <!-- Expansion rules -->
+      <text x="450" y="280" text-anchor="middle" fill="#d2a8ff" font-size="15" font-weight="bold">Variable Name Rules</text>
+
+      <rect x="50" y="295" width="380" height="90" rx="8" fill="#3fb95015" stroke="#3fb950"/>
+      <text x="240" y="320" text-anchor="middle" fill="#3fb950" font-size="13" font-weight="bold">Valid variable names:</text>
+      <text x="240" y="342" text-anchor="middle" fill="#c9d1d9" font-size="12">Start with letter or underscore</text>
+      <text x="240" y="362" text-anchor="middle" fill="#c9d1d9" font-size="12">Contain: letters, digits, underscores</text>
+      <text x="240" y="378" text-anchor="middle" fill="#8b949e" font-family="monospace" font-size="11">$HOME  $_var  $var123  $?</text>
+
+      <rect x="470" y="295" width="380" height="90" rx="8" fill="#ffa65715" stroke="#ffa657"/>
+      <text x="660" y="320" text-anchor="middle" fill="#ffa657" font-size="13" font-weight="bold">When expansion STOPS:</text>
+      <text x="660" y="342" text-anchor="middle" fill="#c9d1d9" font-size="12">At first non-valid character</text>
+      <text x="660" y="362" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="11">$USER/path → "tomi" + "/path"</text>
+      <text x="660" y="378" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="11">$USER.txt  → "tomi" + ".txt"</text>
+    </svg>
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>The Special Variable: $?</h2>
+  <p><code>$?</code> holds the <span class="highlight">exit status of the last command</span>. This is how scripts check if things worked:</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 180" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="20" text-anchor="middle" fill="#58a6ff" font-size="15" font-weight="bold">Common Exit Codes</text>
+
+      <rect x="30" y="40" width="160" height="60" rx="8" fill="#3fb95015" stroke="#3fb950"/>
+      <text x="110" y="65" text-anchor="middle" fill="#3fb950" font-size="20" font-weight="bold">0</text>
+      <text x="110" y="85" text-anchor="middle" fill="#8b949e" font-size="11">Success!</text>
+
+      <rect x="210" y="40" width="160" height="60" rx="8" fill="#ffa65715" stroke="#ffa657"/>
+      <text x="290" y="65" text-anchor="middle" fill="#ffa657" font-size="20" font-weight="bold">1</text>
+      <text x="290" y="85" text-anchor="middle" fill="#8b949e" font-size="11">General error</text>
+
+      <rect x="390" y="40" width="160" height="60" rx="8" fill="#f8514915" stroke="#f85149"/>
+      <text x="470" y="65" text-anchor="middle" fill="#f85149" font-size="20" font-weight="bold">2</text>
+      <text x="470" y="85" text-anchor="middle" fill="#8b949e" font-size="11">Syntax/usage error</text>
+
+      <rect x="570" y="40" width="160" height="60" rx="8" fill="#d2a8ff15" stroke="#d2a8ff"/>
+      <text x="650" y="65" text-anchor="middle" fill="#d2a8ff" font-size="20" font-weight="bold">126</text>
+      <text x="650" y="85" text-anchor="middle" fill="#8b949e" font-size="11">Permission denied</text>
+
+      <rect x="750" y="40" width="130" height="60" rx="8" fill="#f8514915" stroke="#f85149"/>
+      <text x="815" y="65" text-anchor="middle" fill="#f85149" font-size="20" font-weight="bold">127</text>
+      <text x="815" y="85" text-anchor="middle" fill="#8b949e" font-size="11">Command not found</text>
+
+      <text x="450" y="130" text-anchor="middle" fill="#c9d1d9" font-size="12">For signals: exit_status = 128 + signal_number</text>
+      <text x="450" y="150" text-anchor="middle" fill="#8b949e" font-size="12">Ctrl+C (SIGINT=2) → $? = 130   |   Ctrl+\ (SIGQUIT=3) → $? = 131</text>
+      <text x="450" y="170" text-anchor="middle" fill="#ffa657" font-size="12">Your shell must update $? after EVERY command!</text>
+    </svg>
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>Expansion Order (When Does It Happen?)</h2>
+  <div class="diagram">
+    <svg viewBox="0 0 900 100" xmlns="http://www.w3.org/2000/svg">
+      <rect x="20" y="20" width="140" height="50" rx="8" fill="#1f6feb15" stroke="#1f6feb"/>
+      <text x="90" y="50" text-anchor="middle" fill="#58a6ff" font-size="12" font-weight="bold">1. TOKENIZE</text>
+
+      <line x1="165" y1="45" x2="200" y2="45" stroke="#ffa657" stroke-width="1.5"/>
+      <polygon points="200,40 215,45 200,50" fill="#ffa657"/>
+
+      <rect x="220" y="20" width="160" height="50" rx="8" fill="#3fb95015" stroke="#3fb950"/>
+      <text x="300" y="50" text-anchor="middle" fill="#3fb950" font-size="12" font-weight="bold">2. EXPAND $vars</text>
+
+      <line x1="385" y1="45" x2="420" y2="45" stroke="#ffa657" stroke-width="1.5"/>
+      <polygon points="420,40 435,45 420,50" fill="#ffa657"/>
+
+      <rect x="440" y="20" width="170" height="50" rx="8" fill="#d2a8ff15" stroke="#d2a8ff"/>
+      <text x="525" y="50" text-anchor="middle" fill="#d2a8ff" font-size="12" font-weight="bold">3. REMOVE quotes</text>
+
+      <line x1="615" y1="45" x2="650" y2="45" stroke="#ffa657" stroke-width="1.5"/>
+      <polygon points="650,40 665,45 650,50" fill="#ffa657"/>
+
+      <rect x="670" y="20" width="140" height="50" rx="8" fill="#f8514915" stroke="#f85149"/>
+      <text x="740" y="50" text-anchor="middle" fill="#f85149" font-size="12" font-weight="bold">4. EXECUTE</text>
+
+      <text x="450" y="95" text-anchor="middle" fill="#8b949e" font-size="11">Expansion happens AFTER tokenizing but BEFORE removing quotes and executing</text>
+    </svg>
+  </div>
+</div>
+
+</body>
+</html>

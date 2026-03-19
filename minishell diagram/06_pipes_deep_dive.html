@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minishell - Level 6: Pipes Deep Dive</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #e6edf3; padding: 40px; line-height: 1.7; }
+  h1 { font-size: 2.2rem; color: #58a6ff; margin-bottom: 10px; }
+  .subtitle { color: #8b949e; font-size: 1.1rem; margin-bottom: 40px; }
+  .concept-box { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 30px; margin-bottom: 30px; }
+  .concept-box h2 { color: #79c0ff; margin-bottom: 15px; font-size: 1.4rem; }
+  .concept-box p { color: #c9d1d9; margin-bottom: 12px; }
+  .highlight { color: #ffa657; font-weight: 600; }
+  .diagram { background: #0d1117; border: 2px solid #30363d; border-radius: 10px; padding: 30px; margin: 20px 0; overflow-x: auto; }
+  .analogy { background: #1c2333; border-left: 4px solid #58a6ff; padding: 20px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+  .analogy strong { color: #58a6ff; }
+  .level-badge { display: inline-block; background: #f85149; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
+  .code-block { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; font-family: 'Fira Code', monospace; color: #c9d1d9; margin: 15px 0; font-size: 0.9rem; white-space: pre; overflow-x: auto; line-height: 1.8; }
+  .code-comment { color: #8b949e; }
+  .code-keyword { color: #ff7b72; }
+  .code-func { color: #d2a8ff; }
+  .code-num { color: #79c0ff; }
+  .warning { background: #f8514915; border: 1px solid #f85149; border-radius: 8px; padding: 15px 20px; margin: 15px 0; }
+  .warning strong { color: #f85149; }
+</style>
+</head>
+<body>
+
+<span class="level-badge">LEVEL 6 - DEEP DIVE</span>
+<h1>🔗 Pipes: Connecting Processes</h1>
+<p class="subtitle">How "ls | grep .c" actually works at the system level</p>
+
+<div class="concept-box">
+  <h2>What Is a Pipe?</h2>
+  <p>A pipe is a <span class="highlight">one-way data channel</span> created by the OS. It has two ends: a <span class="highlight" style="color: #3fb950;">write end</span> (where data goes IN) and a <span class="highlight" style="color: #58a6ff;">read end</span> (where data comes OUT). Data flows in one direction only, like a water pipe.</p>
+
+  <div class="analogy">
+    <strong>🚰 Water Pipe Analogy:</strong> Imagine a pipe connecting two rooms. Room A pours water in (write end). Room B collects water out (read end). Water can only flow one way. If nobody is pouring, the collector waits. If the pipe is full, the pourer waits. That's exactly how Unix pipes work!
+  </div>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 200" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="25" text-anchor="middle" fill="#58a6ff" font-size="16" font-weight="bold">pipe() creates two file descriptors</text>
+
+      <!-- pipe() call -->
+      <rect x="300" y="50" width="300" height="40" rx="8" fill="#ffa65720" stroke="#ffa657"/>
+      <text x="450" y="75" text-anchor="middle" fill="#ffa657" font-family="monospace" font-size="13">int pipefd[2]; pipe(pipefd);</text>
+
+      <!-- pipefd[0] - READ -->
+      <rect x="120" y="120" width="200" height="60" rx="10" fill="#1f6feb15" stroke="#1f6feb" stroke-width="2"/>
+      <text x="220" y="145" text-anchor="middle" fill="#58a6ff" font-size="14" font-weight="bold">pipefd[0]</text>
+      <text x="220" y="165" text-anchor="middle" fill="#8b949e" font-size="12">READ end 📖</text>
+
+      <!-- pipefd[1] - WRITE -->
+      <rect x="580" y="120" width="200" height="60" rx="10" fill="#3fb95015" stroke="#3fb950" stroke-width="2"/>
+      <text x="680" y="145" text-anchor="middle" fill="#3fb950" font-size="14" font-weight="bold">pipefd[1]</text>
+      <text x="680" y="165" text-anchor="middle" fill="#8b949e" font-size="12">WRITE end ✏️</text>
+
+      <!-- Pipe visualization between them -->
+      <rect x="340" y="135" width="220" height="30" rx="15" fill="#30363d" stroke="#8b949e"/>
+      <text x="450" y="156" text-anchor="middle" fill="#ffa657" font-size="12">data flows →→→</text>
+
+      <!-- Labels -->
+      <line x1="350" y1="90" x2="220" y2="120" stroke="#58a6ff" stroke-width="1" stroke-dasharray="4,3"/>
+      <line x1="550" y1="90" x2="680" y2="120" stroke="#3fb950" stroke-width="1" stroke-dasharray="4,3"/>
+    </svg>
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>How <code>ls | grep .c</code> Works — Step by Step</h2>
+
+  <div class="diagram">
+    <svg viewBox="0 0 920 700" xmlns="http://www.w3.org/2000/svg">
+      <!-- Step 1 -->
+      <text x="450" y="25" text-anchor="middle" fill="#ffa657" font-size="15" font-weight="bold">Step 1: Parent creates the pipe</text>
+
+      <rect x="250" y="40" width="400" height="60" rx="10" fill="#161b22" stroke="#30363d"/>
+      <text x="450" y="65" text-anchor="middle" fill="#58a6ff" font-size="13">PARENT (shell) — PID 1234</text>
+      <text x="450" y="85" text-anchor="middle" fill="#8b949e" font-size="11">pipe(pipefd) → pipefd[0]=3, pipefd[1]=4</text>
+
+      <!-- Step 2 -->
+      <text x="450" y="130" text-anchor="middle" fill="#ffa657" font-size="15" font-weight="bold">Step 2: Fork child 1 (for ls)</text>
+
+      <!-- Parent -->
+      <rect x="30" y="150" width="250" height="90" rx="10" fill="#1f6feb15" stroke="#1f6feb"/>
+      <text x="155" y="175" text-anchor="middle" fill="#58a6ff" font-size="12" font-weight="bold">PARENT (shell)</text>
+      <text x="155" y="195" text-anchor="middle" fill="#8b949e" font-size="10">Has: fd3 (read), fd4 (write)</text>
+      <text x="155" y="215" text-anchor="middle" fill="#8b949e" font-size="10">Closes: fd3 and fd4 (not needed!)</text>
+      <text x="155" y="230" text-anchor="middle" fill="#f85149" font-size="10">↑ CRITICAL to close unused ends!</text>
+
+      <!-- Child 1 -->
+      <rect x="350" y="150" width="250" height="90" rx="10" fill="#3fb95015" stroke="#3fb950"/>
+      <text x="475" y="175" text-anchor="middle" fill="#3fb950" font-size="12" font-weight="bold">CHILD 1 (will be ls)</text>
+      <text x="475" y="195" text-anchor="middle" fill="#8b949e" font-size="10">Has: fd3 (read), fd4 (write)</text>
+      <text x="475" y="215" text-anchor="middle" fill="#ffa657" font-size="10">dup2(fd4, STDOUT) → stdout=pipe!</text>
+      <text x="475" y="230" text-anchor="middle" fill="#8b949e" font-size="10">Close fd3, fd4 (done with them)</text>
+
+      <!-- Step 3 -->
+      <text x="450" y="275" text-anchor="middle" fill="#ffa657" font-size="15" font-weight="bold">Step 3: Fork child 2 (for grep)</text>
+
+      <!-- Child 2 -->
+      <rect x="640" y="150" width="250" height="90" rx="10" fill="#d2a8ff15" stroke="#d2a8ff"/>
+      <text x="765" y="175" text-anchor="middle" fill="#d2a8ff" font-size="12" font-weight="bold">CHILD 2 (will be grep)</text>
+      <text x="765" y="195" text-anchor="middle" fill="#8b949e" font-size="10">Has: fd3 (read), fd4 (write)</text>
+      <text x="765" y="215" text-anchor="middle" fill="#ffa657" font-size="10">dup2(fd3, STDIN) → stdin=pipe!</text>
+      <text x="765" y="230" text-anchor="middle" fill="#8b949e" font-size="10">Close fd3, fd4 (done with them)</text>
+
+      <!-- Step 4: The actual flow -->
+      <text x="450" y="310" text-anchor="middle" fill="#ffa657" font-size="15" font-weight="bold">Step 4: Data flows through the pipe!</text>
+
+      <!-- ls process -->
+      <rect x="50" y="330" width="220" height="100" rx="12" fill="#3fb95015" stroke="#3fb950" stroke-width="2"/>
+      <text x="160" y="358" text-anchor="middle" fill="#3fb950" font-size="14" font-weight="bold">ls -la</text>
+      <text x="160" y="380" text-anchor="middle" fill="#c9d1d9" font-size="11">STDOUT → pipe write end</text>
+      <text x="160" y="400" text-anchor="middle" fill="#8b949e" font-size="11">Writes: "main.c\nutils.c\n..."</text>
+      <text x="160" y="420" text-anchor="middle" fill="#8b949e" font-size="10">into the pipe</text>
+
+      <!-- Pipe visualization -->
+      <rect x="310" y="355" width="270" height="50" rx="25" fill="#30363d" stroke="#ffa657" stroke-width="1.5"/>
+      <text x="445" y="375" text-anchor="middle" fill="#ffa657" font-size="12" font-weight="bold">PIPE (kernel buffer)</text>
+      <text x="445" y="395" text-anchor="middle" fill="#c9d1d9" font-size="11">main.c → utils.c → Makefile →</text>
+
+      <!-- Arrows -->
+      <line x1="270" y1="380" x2="305" y2="380" stroke="#3fb950" stroke-width="2"/>
+      <polygon points="305,375 320,380 305,385" fill="#3fb950"/>
+
+      <line x1="585" y1="380" x2="618" y2="380" stroke="#d2a8ff" stroke-width="2"/>
+      <polygon points="618,375 633,380 618,385" fill="#d2a8ff"/>
+
+      <!-- grep process -->
+      <rect x="640" y="330" width="220" height="100" rx="12" fill="#d2a8ff15" stroke="#d2a8ff" stroke-width="2"/>
+      <text x="750" y="358" text-anchor="middle" fill="#d2a8ff" font-size="14" font-weight="bold">grep .c</text>
+      <text x="750" y="380" text-anchor="middle" fill="#c9d1d9" font-size="11">STDIN ← pipe read end</text>
+      <text x="750" y="400" text-anchor="middle" fill="#8b949e" font-size="11">Reads: "main.c\nutils.c\n..."</text>
+      <text x="750" y="420" text-anchor="middle" fill="#3fb950" font-size="10">Outputs: main.c, utils.c</text>
+
+      <!-- dup2 explanation -->
+      <text x="450" y="475" text-anchor="middle" fill="#d2a8ff" font-size="15" font-weight="bold">🔑 The Magic: dup2()</text>
+
+      <rect x="50" y="490" width="800" height="190" rx="10" fill="#1c2333" stroke="#30363d"/>
+
+      <!-- fd table before -->
+      <text x="230" y="515" text-anchor="middle" fill="#79c0ff" font-size="13" font-weight="bold">BEFORE dup2 (child 1)</text>
+      <text x="100" y="540" fill="#8b949e" font-size="11">fd 0 (STDIN)  → terminal</text>
+      <text x="100" y="560" fill="#8b949e" font-size="11">fd 1 (STDOUT) → terminal</text>
+      <text x="100" y="580" fill="#8b949e" font-size="11">fd 2 (STDERR) → terminal</text>
+      <text x="100" y="600" fill="#58a6ff" font-size="11">fd 3 → pipe read end</text>
+      <text x="100" y="620" fill="#3fb950" font-size="11">fd 4 → pipe write end</text>
+
+      <!-- Arrow -->
+      <text x="450" y="570" text-anchor="middle" fill="#ffa657" font-size="18">→</text>
+      <text x="450" y="595" text-anchor="middle" fill="#ffa657" font-size="11">dup2(4, 1)</text>
+
+      <!-- fd table after -->
+      <text x="680" y="515" text-anchor="middle" fill="#79c0ff" font-size="13" font-weight="bold">AFTER dup2 (child 1)</text>
+      <text x="550" y="540" fill="#8b949e" font-size="11">fd 0 (STDIN)  → terminal</text>
+      <text x="550" y="560" fill="#3fb950" font-size="11" font-weight="bold">fd 1 (STDOUT) → PIPE WRITE! ✨</text>
+      <text x="550" y="580" fill="#8b949e" font-size="11">fd 2 (STDERR) → terminal</text>
+      <text x="550" y="600" fill="#8b949e" font-size="11" text-decoration="line-through">fd 3 → closed</text>
+      <text x="550" y="620" fill="#8b949e" font-size="11" text-decoration="line-through">fd 4 → closed</text>
+      <text x="550" y="645" fill="#ffa657" font-size="10">Now printf() in ls goes to pipe!</text>
+    </svg>
+  </div>
+
+  <div class="warning">
+    <strong>⚠ THE #1 PIPE BUG:</strong> Forgetting to close unused pipe ends. If the parent keeps the write end open, the reading child will NEVER get EOF — it'll hang forever waiting for more data. Every process must close pipe ends it doesn't use!
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>Multiple Pipes: <code>a | b | c</code></h2>
+  <p>For N commands, you need <span class="highlight">N-1 pipes</span>. Each pipe connects adjacent commands:</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 160" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="25" text-anchor="middle" fill="#58a6ff" font-size="15" font-weight="bold">cat file | grep error | sort | head -5</text>
+
+      <rect x="30" y="50" width="130" height="50" rx="8" fill="#1f6feb15" stroke="#1f6feb"/>
+      <text x="95" y="80" text-anchor="middle" fill="#58a6ff" font-size="12">cat file</text>
+
+      <rect x="180" y="60" width="80" height="30" rx="15" fill="#30363d" stroke="#ffa657"/>
+      <text x="220" y="80" text-anchor="middle" fill="#ffa657" font-size="10">pipe 1</text>
+
+      <rect x="280" y="50" width="130" height="50" rx="8" fill="#3fb95015" stroke="#3fb950"/>
+      <text x="345" y="80" text-anchor="middle" fill="#3fb950" font-size="12">grep error</text>
+
+      <rect x="430" y="60" width="80" height="30" rx="15" fill="#30363d" stroke="#ffa657"/>
+      <text x="470" y="80" text-anchor="middle" fill="#ffa657" font-size="10">pipe 2</text>
+
+      <rect x="530" y="50" width="130" height="50" rx="8" fill="#d2a8ff15" stroke="#d2a8ff"/>
+      <text x="595" y="80" text-anchor="middle" fill="#d2a8ff" font-size="12">sort</text>
+
+      <rect x="680" y="60" width="80" height="30" rx="15" fill="#30363d" stroke="#ffa657"/>
+      <text x="720" y="80" text-anchor="middle" fill="#ffa657" font-size="10">pipe 3</text>
+
+      <rect x="780" y="50" width="100" height="50" rx="8" fill="#f8514915" stroke="#f85149"/>
+      <text x="830" y="80" text-anchor="middle" fill="#f85149" font-size="12">head -5</text>
+
+      <text x="450" y="135" text-anchor="middle" fill="#8b949e" font-size="12">4 commands → 3 pipes. First reads from terminal, last writes to terminal.</text>
+      <text x="450" y="155" text-anchor="middle" fill="#ffa657" font-size="12">Each middle command reads from previous pipe, writes to next pipe.</text>
+    </svg>
+  </div>
+</div>
+
+</body>
+</html>

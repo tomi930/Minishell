@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minishell - Level 7: Redirections & File Descriptors</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #e6edf3; padding: 40px; line-height: 1.7; }
+  h1 { font-size: 2.2rem; color: #58a6ff; margin-bottom: 10px; }
+  .subtitle { color: #8b949e; font-size: 1.1rem; margin-bottom: 40px; }
+  .concept-box { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 30px; margin-bottom: 30px; }
+  .concept-box h2 { color: #79c0ff; margin-bottom: 15px; font-size: 1.4rem; }
+  .concept-box p { color: #c9d1d9; margin-bottom: 12px; }
+  .highlight { color: #ffa657; font-weight: 600; }
+  .diagram { background: #0d1117; border: 2px solid #30363d; border-radius: 10px; padding: 30px; margin: 20px 0; overflow-x: auto; }
+  .analogy { background: #1c2333; border-left: 4px solid #58a6ff; padding: 20px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+  .analogy strong { color: #58a6ff; }
+  .level-badge { display: inline-block; background: #f85149; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
+  .code-block { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; font-family: 'Fira Code', monospace; color: #c9d1d9; margin: 15px 0; font-size: 0.9rem; white-space: pre; overflow-x: auto; line-height: 1.8; }
+  .code-comment { color: #8b949e; }
+  .code-keyword { color: #ff7b72; }
+  .code-func { color: #d2a8ff; }
+</style>
+</head>
+<body>
+
+<span class="level-badge">LEVEL 7 - DEEP DIVE</span>
+<h1>📂 Redirections & File Descriptors</h1>
+<p class="subtitle">Understanding the plumbing behind >, >>, <, and << </p>
+
+<div class="concept-box">
+  <h2>First: What ARE File Descriptors?</h2>
+  <p>A file descriptor (fd) is just a <span class="highlight">number</span> that represents an open file, pipe, socket, or device. Every process starts with 3:</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 250" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="25" text-anchor="middle" fill="#58a6ff" font-size="16" font-weight="bold">Every Process Starts With 3 File Descriptors</text>
+
+      <!-- Process box -->
+      <rect x="50" y="50" width="150" height="170" rx="10" fill="#1c2333" stroke="#30363d"/>
+      <text x="125" y="75" text-anchor="middle" fill="#79c0ff" font-size="13" font-weight="bold">Process FD Table</text>
+      <line x1="60" y1="85" x2="190" y2="85" stroke="#30363d"/>
+
+      <!-- fd 0 -->
+      <rect x="65" y="95" width="120" height="28" rx="5" fill="#3fb95015" stroke="#3fb950"/>
+      <text x="125" y="114" text-anchor="middle" fill="#3fb950" font-size="12" font-weight="bold">fd 0 = STDIN</text>
+
+      <!-- fd 1 -->
+      <rect x="65" y="130" width="120" height="28" rx="5" fill="#58a6ff15" stroke="#58a6ff"/>
+      <text x="125" y="149" text-anchor="middle" fill="#58a6ff" font-size="12" font-weight="bold">fd 1 = STDOUT</text>
+
+      <!-- fd 2 -->
+      <rect x="65" y="165" width="120" height="28" rx="5" fill="#f8514915" stroke="#f85149"/>
+      <text x="125" y="184" text-anchor="middle" fill="#f85149" font-size="12" font-weight="bold">fd 2 = STDERR</text>
+
+      <!-- Arrows to terminal -->
+      <line x1="200" y1="109" x2="350" y2="109" stroke="#3fb950" stroke-width="1.5"/>
+      <line x1="200" y1="144" x2="350" y2="144" stroke="#58a6ff" stroke-width="1.5"/>
+      <line x1="200" y1="179" x2="350" y2="179" stroke="#f85149" stroke-width="1.5"/>
+
+      <!-- Terminal -->
+      <rect x="350" y="80" width="200" height="130" rx="10" fill="#161b22" stroke="#8b949e"/>
+      <text x="450" y="108" text-anchor="middle" fill="#c9d1d9" font-size="13" font-weight="bold">🖥️ Terminal</text>
+      <text x="450" y="130" text-anchor="middle" fill="#3fb950" font-size="11">← reads your typing (stdin)</text>
+      <text x="450" y="150" text-anchor="middle" fill="#58a6ff" font-size="11">← shows output (stdout)</text>
+      <text x="450" y="170" text-anchor="middle" fill="#f85149" font-size="11">← shows errors (stderr)</text>
+      <text x="450" y="195" text-anchor="middle" fill="#8b949e" font-size="10">All 3 point to terminal by default!</text>
+
+      <!-- Key insight -->
+      <rect x="600" y="80" width="270" height="130" rx="10" fill="#ffa65715" stroke="#ffa657"/>
+      <text x="735" y="108" text-anchor="middle" fill="#ffa657" font-size="13" font-weight="bold">🔑 Key Insight</text>
+      <text x="735" y="135" text-anchor="middle" fill="#c9d1d9" font-size="12">Redirections work by</text>
+      <text x="735" y="155" text-anchor="middle" fill="#c9d1d9" font-size="12">CHANGING where fd 0, 1, 2</text>
+      <text x="735" y="175" text-anchor="middle" fill="#c9d1d9" font-size="12">point to. Instead of terminal,</text>
+      <text x="735" y="195" text-anchor="middle" fill="#c9d1d9" font-size="12">they point to a FILE.</text>
+    </svg>
+  </div>
+
+  <div class="analogy">
+    <strong>🔌 Plug Analogy:</strong> Think of fd 0, 1, 2 as plugs in a wall. Normally all three are plugged into the "terminal" outlet. Redirections unplug one and plug it into a "file" outlet instead. The program doesn't know the difference — it just writes to fd 1 like always. It doesn't care WHERE fd 1 goes.
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>The 4 Redirections Explained</h2>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 600" xmlns="http://www.w3.org/2000/svg">
+      <!-- > Output redirect -->
+      <rect x="20" y="10" width="420" height="130" rx="10" fill="#1c2333" stroke="#58a6ff" stroke-width="1.5"/>
+      <text x="230" y="35" text-anchor="middle" fill="#58a6ff" font-size="15" font-weight="bold">> Output Redirect (truncate)</text>
+      <text x="230" y="58" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">echo "hello" > file.txt</text>
+      <text x="230" y="82" text-anchor="middle" fill="#8b949e" font-size="12">Opens file.txt (creates or EMPTIES it)</text>
+      <text x="230" y="100" text-anchor="middle" fill="#8b949e" font-size="12">Points STDOUT (fd 1) → file.txt</text>
+      <text x="230" y="118" text-anchor="middle" fill="#ffa657" font-size="11">open(file, O_WRONLY | O_CREAT | O_TRUNC, 0644)</text>
+      <text x="230" y="135" text-anchor="middle" fill="#f85149" font-size="10">⚠ Destroys existing content!</text>
+
+      <!-- >> Append redirect -->
+      <rect x="460" y="10" width="420" height="130" rx="10" fill="#1c2333" stroke="#3fb950" stroke-width="1.5"/>
+      <text x="670" y="35" text-anchor="middle" fill="#3fb950" font-size="15" font-weight="bold">>> Append Redirect</text>
+      <text x="670" y="58" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">echo "world" >> file.txt</text>
+      <text x="670" y="82" text-anchor="middle" fill="#8b949e" font-size="12">Opens file.txt (creates or KEEPS content)</text>
+      <text x="670" y="100" text-anchor="middle" fill="#8b949e" font-size="12">Points STDOUT (fd 1) → end of file.txt</text>
+      <text x="670" y="118" text-anchor="middle" fill="#ffa657" font-size="11">open(file, O_WRONLY | O_CREAT | O_APPEND, 0644)</text>
+      <text x="670" y="135" text-anchor="middle" fill="#3fb950" font-size="10">✓ Preserves existing content!</text>
+
+      <!-- < Input redirect -->
+      <rect x="20" y="160" width="420" height="130" rx="10" fill="#1c2333" stroke="#d2a8ff" stroke-width="1.5"/>
+      <text x="230" y="185" text-anchor="middle" fill="#d2a8ff" font-size="15" font-weight="bold">< Input Redirect</text>
+      <text x="230" y="208" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">cat < file.txt</text>
+      <text x="230" y="232" text-anchor="middle" fill="#8b949e" font-size="12">Opens file.txt for reading</text>
+      <text x="230" y="250" text-anchor="middle" fill="#8b949e" font-size="12">Points STDIN (fd 0) → file.txt</text>
+      <text x="230" y="268" text-anchor="middle" fill="#ffa657" font-size="11">open(file, O_RDONLY)</text>
+      <text x="230" y="285" text-anchor="middle" fill="#8b949e" font-size="10">cat reads from file instead of keyboard</text>
+
+      <!-- << Heredoc -->
+      <rect x="460" y="160" width="420" height="130" rx="10" fill="#1c2333" stroke="#ffa657" stroke-width="1.5"/>
+      <text x="670" y="185" text-anchor="middle" fill="#ffa657" font-size="15" font-weight="bold"><< Heredoc</text>
+      <text x="670" y="208" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">cat << EOF</text>
+      <text x="670" y="228" text-anchor="middle" fill="#8b949e" font-size="12">Reads lines from user until "EOF"</text>
+      <text x="670" y="248" text-anchor="middle" fill="#8b949e" font-size="12">Stores in temp file or pipe</text>
+      <text x="670" y="268" text-anchor="middle" fill="#8b949e" font-size="12">Points STDIN (fd 0) → that content</text>
+      <text x="670" y="285" text-anchor="middle" fill="#ffa657" font-size="10">Like typing input inline in the command</text>
+
+      <!-- Visual: how > works -->
+      <text x="450" y="325" text-anchor="middle" fill="#58a6ff" font-size="16" font-weight="bold">Visual: echo "hello" > file.txt</text>
+
+      <!-- Normal -->
+      <text x="225" y="355" text-anchor="middle" fill="#8b949e" font-size="13">Normal (no redirect)</text>
+      <rect x="80" y="365" width="100" height="40" rx="6" fill="#1f6feb15" stroke="#1f6feb"/>
+      <text x="130" y="390" text-anchor="middle" fill="#58a6ff" font-size="12">echo</text>
+      <line x1="180" y1="385" x2="250" y2="385" stroke="#58a6ff" stroke-width="2"/>
+      <text x="215" y="378" text-anchor="middle" fill="#58a6ff" font-size="9">stdout</text>
+      <rect x="250" y="370" width="100" height="30" rx="6" fill="#161b22" stroke="#8b949e"/>
+      <text x="300" y="390" text-anchor="middle" fill="#8b949e" font-size="11">terminal</text>
+
+      <!-- With > -->
+      <text x="660" y="355" text-anchor="middle" fill="#ffa657" font-size="13">With > file.txt</text>
+      <rect x="520" y="365" width="100" height="40" rx="6" fill="#1f6feb15" stroke="#1f6feb"/>
+      <text x="570" y="390" text-anchor="middle" fill="#58a6ff" font-size="12">echo</text>
+      <line x1="620" y1="385" x2="690" y2="385" stroke="#ffa657" stroke-width="2"/>
+      <text x="655" y="378" text-anchor="middle" fill="#ffa657" font-size="9">stdout</text>
+      <rect x="690" y="370" width="100" height="30" rx="6" fill="#3fb95015" stroke="#3fb950"/>
+      <text x="740" y="390" text-anchor="middle" fill="#3fb950" font-size="11">📄 file.txt</text>
+
+      <!-- Multiple redirections -->
+      <text x="450" y="440" text-anchor="middle" fill="#d2a8ff" font-size="15" font-weight="bold">Tricky: Multiple redirections!</text>
+      <text x="450" y="465" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">echo hi > a.txt > b.txt > c.txt</text>
+      <text x="450" y="490" text-anchor="middle" fill="#8b949e" font-size="12">All files are CREATED, but only the LAST one gets the content!</text>
+      <text x="450" y="510" text-anchor="middle" fill="#8b949e" font-size="12">Each > replaces the previous stdout destination.</text>
+      <text x="450" y="530" text-anchor="middle" fill="#ffa657" font-size="12">Result: a.txt (empty), b.txt (empty), c.txt ("hi")</text>
+
+      <text x="450" y="560" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">< a.txt < b.txt cat</text>
+      <text x="450" y="585" text-anchor="middle" fill="#8b949e" font-size="12">Both files opened, but cat reads from the LAST one: b.txt</text>
+    </svg>
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>The Code: How to Do a Redirect</h2>
+
+  <div class="code-block"><span class="code-comment">// For: echo "hello" > output.txt</span>
+<span class="code-comment">// In the CHILD process (after fork, before execve):</span>
+
+<span class="code-keyword">int</span> fd = <span class="code-func">open</span>("output.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+<span class="code-keyword">if</span> (fd == -1)
+{
+    <span class="code-func">perror</span>("minishell: output.txt");  <span class="code-comment">// prints error with filename</span>
+    <span class="code-func">exit</span>(1);
+}
+<span class="code-func">dup2</span>(fd, STDOUT_FILENO);  <span class="code-comment">// fd 1 now points to output.txt!</span>
+<span class="code-func">close</span>(fd);                <span class="code-comment">// don't need the extra fd anymore</span>
+<span class="code-comment">// Now execve() the command — its stdout goes to the file!</span>
+<span class="code-func">execve</span>("/bin/echo", args, envp);</div>
+
+  <p>The beauty of this design: <code>echo</code> has NO IDEA its output goes to a file. It just writes to fd 1 (stdout) like it always does. The <span class="highlight">shell</span> is the one who changed where fd 1 points.</p>
+</div>
+
+</body>
+</html>

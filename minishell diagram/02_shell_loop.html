@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minishell - Level 2: The Shell Loop</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #e6edf3; padding: 40px; line-height: 1.7; }
+  h1 { font-size: 2.2rem; color: #58a6ff; margin-bottom: 10px; }
+  .subtitle { color: #8b949e; font-size: 1.1rem; margin-bottom: 40px; }
+  .concept-box { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 30px; margin-bottom: 30px; }
+  .concept-box h2 { color: #79c0ff; margin-bottom: 15px; font-size: 1.4rem; }
+  .concept-box p { color: #c9d1d9; margin-bottom: 12px; }
+  .highlight { color: #ffa657; font-weight: 600; }
+  .diagram { background: #0d1117; border: 2px solid #30363d; border-radius: 10px; padding: 30px; margin: 20px 0; overflow-x: auto; }
+  .analogy { background: #1c2333; border-left: 4px solid #58a6ff; padding: 20px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+  .analogy strong { color: #58a6ff; }
+  .code-block { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; font-family: 'Fira Code', monospace; color: #c9d1d9; margin: 15px 0; font-size: 0.9rem; white-space: pre; overflow-x: auto; line-height: 1.8; }
+  .code-comment { color: #8b949e; }
+  .code-keyword { color: #ff7b72; }
+  .code-func { color: #d2a8ff; }
+  .code-string { color: #a5d6ff; }
+  .level-badge { display: inline-block; background: #238636; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 15px; }
+  .step-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+  .step-card { background: #0d1117; border: 1px solid #30363d; border-radius: 10px; padding: 20px; text-align: center; }
+  .step-num { font-size: 2rem; font-weight: bold; }
+  .step-card h3 { color: #79c0ff; margin: 8px 0; font-size: 1rem; }
+  .step-card p { color: #8b949e; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+
+<span class="level-badge">LEVEL 2 - EASY</span>
+<h1>🔄 The Shell Loop (REPL)</h1>
+<p class="subtitle">The heartbeat of your minishell — it never stops looping until you tell it to</p>
+
+<div class="concept-box">
+  <h2>The Core Idea: Read → Evaluate → Print → Loop</h2>
+  <p>Your shell is an <span class="highlight">infinite loop</span>. It does the same 4 things over and over:</p>
+
+  <div class="step-grid">
+    <div class="step-card">
+      <div class="step-num" style="color: #58a6ff;">1</div>
+      <h3>PROMPT</h3>
+      <p>Display "minishell$ " and wait for the user to type something</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num" style="color: #3fb950;">2</div>
+      <h3>READ</h3>
+      <p>Get the line the user typed (using readline)</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num" style="color: #ffa657;">3</div>
+      <h3>PARSE</h3>
+      <p>Break the input into tokens, understand the structure</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num" style="color: #f85149;">4</div>
+      <h3>EXECUTE</h3>
+      <p>Run the command(s), show output, then go back to step 1</p>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 500" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#ffa657"/>
+        </marker>
+      </defs>
+
+      <!-- Center title -->
+      <text x="450" y="40" text-anchor="middle" fill="#58a6ff" font-size="18" font-weight="bold">The Infinite Shell Loop</text>
+
+      <!-- PROMPT box -->
+      <rect x="310" y="70" width="200" height="70" rx="12" fill="#1f6feb" opacity="0.2" stroke="#1f6feb" stroke-width="2"/>
+      <text x="410" y="100" text-anchor="middle" fill="#58a6ff" font-size="15" font-weight="bold">1. PROMPT</text>
+      <text x="410" y="120" text-anchor="middle" fill="#8b949e" font-size="11">Display "minishell$ "</text>
+
+      <!-- Arrow down -->
+      <line x1="410" y1="140" x2="410" y2="170" stroke="#ffa657" stroke-width="2" marker-end="url(#arrow)"/>
+
+      <!-- READ box -->
+      <rect x="310" y="175" width="200" height="70" rx="12" fill="#238636" opacity="0.15" stroke="#238636" stroke-width="2"/>
+      <text x="410" y="205" text-anchor="middle" fill="#3fb950" font-size="15" font-weight="bold">2. READ</text>
+      <text x="410" y="225" text-anchor="middle" fill="#8b949e" font-size="11">readline() → "ls -la | grep .c"</text>
+
+      <!-- Arrow down -->
+      <line x1="410" y1="245" x2="410" y2="275" stroke="#ffa657" stroke-width="2" marker-end="url(#arrow)"/>
+
+      <!-- PARSE box (bigger) -->
+      <rect x="270" y="280" width="280" height="100" rx="12" fill="#ffa657" opacity="0.12" stroke="#ffa657" stroke-width="2"/>
+      <text x="410" y="310" text-anchor="middle" fill="#ffa657" font-size="15" font-weight="bold">3. PARSE (Lexer + Parser)</text>
+      <text x="410" y="332" text-anchor="middle" fill="#8b949e" font-size="11">Tokenize: [ls] [-la] [|] [grep] [.c]</text>
+      <text x="410" y="352" text-anchor="middle" fill="#8b949e" font-size="11">Build command structure (AST)</text>
+      <text x="410" y="370" text-anchor="middle" fill="#8b949e" font-size="11">Expand $VARIABLES</text>
+
+      <!-- Arrow down -->
+      <line x1="410" y1="380" x2="410" y2="410" stroke="#ffa657" stroke-width="2" marker-end="url(#arrow)"/>
+
+      <!-- EXECUTE box -->
+      <rect x="270" y="415" width="280" height="70" rx="12" fill="#f85149" opacity="0.15" stroke="#f85149" stroke-width="2"/>
+      <text x="410" y="445" text-anchor="middle" fill="#f85149" font-size="15" font-weight="bold">4. EXECUTE</text>
+      <text x="410" y="465" text-anchor="middle" fill="#8b949e" font-size="11">fork() → execve() → waitpid()</text>
+
+      <!-- Loop-back arrow (curved) -->
+      <path d="M 550,450 C 700,450 720,105 510,105" fill="none" stroke="#d2a8ff" stroke-width="2" stroke-dasharray="8,4"/>
+      <polygon points="510,100 495,105 510,110" fill="#d2a8ff"/>
+      <text x="680" y="280" text-anchor="middle" fill="#d2a8ff" font-size="13" font-weight="bold">LOOP</text>
+      <text x="680" y="298" text-anchor="middle" fill="#8b949e" font-size="11">back to step 1</text>
+
+      <!-- Exit condition -->
+      <rect x="60" y="415" width="170" height="60" rx="10" fill="#da3633" opacity="0.15" stroke="#da3633" stroke-width="1.5"/>
+      <text x="145" y="440" text-anchor="middle" fill="#f85149" font-size="12" font-weight="bold">EXIT?</text>
+      <text x="145" y="458" text-anchor="middle" fill="#8b949e" font-size="10">"exit" cmd or Ctrl+D</text>
+      <line x1="270" y1="450" x2="235" y2="445" stroke="#f85149" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <polygon points="235,440 220,445 235,450" fill="#f85149"/>
+
+      <!-- readline detail -->
+      <rect x="560" y="175" width="220" height="55" rx="8" fill="#1c2333" stroke="#30363d" stroke-width="1"/>
+      <text x="670" y="198" text-anchor="middle" fill="#79c0ff" font-size="11" font-weight="bold">readline() gives you:</text>
+      <text x="670" y="218" text-anchor="middle" fill="#8b949e" font-size="10">• Line editing (arrows, delete)</text>
+
+      <!-- parse detail -->
+      <rect x="30" y="290" width="200" height="65" rx="8" fill="#1c2333" stroke="#30363d" stroke-width="1"/>
+      <text x="130" y="310" text-anchor="middle" fill="#ffa657" font-size="11" font-weight="bold">This is the HARD part!</text>
+      <text x="130" y="328" text-anchor="middle" fill="#8b949e" font-size="10">Quotes, pipes, redirections,</text>
+      <text x="130" y="343" text-anchor="middle" fill="#8b949e" font-size="10">$expansions all happen here</text>
+    </svg>
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>In Pseudocode</h2>
+  <div class="code-block"><span class="code-keyword">int</span> <span class="code-func">main</span>(<span class="code-keyword">int</span> ac, <span class="code-keyword">char</span> **av, <span class="code-keyword">char</span> **envp)
+{
+    <span class="code-keyword">char</span>    *line;
+    t_data  data;
+
+    <span class="code-func">init_shell</span>(&amp;data, envp);          <span class="code-comment">// setup env, signals</span>
+    <span class="code-keyword">while</span> (1)                           <span class="code-comment">// ← THE INFINITE LOOP</span>
+    {
+        line = <span class="code-func">readline</span>(<span class="code-string">"minishell$ "</span>);  <span class="code-comment">// 1. PROMPT + READ</span>
+        <span class="code-keyword">if</span> (!line)                      <span class="code-comment">// Ctrl+D → NULL → exit</span>
+            <span class="code-keyword">break</span>;
+        <span class="code-keyword">if</span> (*line)
+            <span class="code-func">add_history</span>(line);           <span class="code-comment">// save for up-arrow recall</span>
+        tokens = <span class="code-func">lexer</span>(line);            <span class="code-comment">// 2. TOKENIZE</span>
+        tree = <span class="code-func">parser</span>(tokens);           <span class="code-comment">// 3. BUILD STRUCTURE</span>
+        <span class="code-func">executor</span>(tree, &amp;data);           <span class="code-comment">// 4. EXECUTE</span>
+        <span class="code-func">free_all</span>(line, tokens, tree);    <span class="code-comment">// cleanup for next loop</span>
+    }
+    <span class="code-keyword">return</span> (data.exit_status);
+}</div>
+
+  <div class="analogy">
+    <strong>🎮 Game Loop Analogy:</strong> Think of a video game. Every frame: read input → update game state → render screen → repeat. A shell does the same thing: read command → process it → show result → repeat. The game loop runs at 60fps. Your shell loop runs at "human typing speed" fps!
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>The 3 Big Phases (Zoomed In)</h2>
+  <p>Each iteration of the loop has these internal phases. The next diagrams will go deep into each one:</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 200" xmlns="http://www.w3.org/2000/svg">
+      <!-- Phase 1: Lexing -->
+      <rect x="20" y="30" width="250" height="140" rx="12" fill="#1c2333" stroke="#58a6ff" stroke-width="2"/>
+      <text x="145" y="60" text-anchor="middle" fill="#58a6ff" font-size="15" font-weight="bold">LEXER (Tokenizer)</text>
+      <text x="145" y="85" text-anchor="middle" fill="#c9d1d9" font-size="12">Input: raw string</text>
+      <text x="145" y="105" text-anchor="middle" fill="#ffa657" font-family="monospace" font-size="12">"ls -la | grep .c"</text>
+      <text x="145" y="130" text-anchor="middle" fill="#c9d1d9" font-size="12">Output: list of tokens</text>
+      <text x="145" y="150" text-anchor="middle" fill="#3fb950" font-family="monospace" font-size="11">[WORD:ls] [WORD:-la] [PIPE] [WORD:grep] [WORD:.c]</text>
+
+      <!-- Arrow -->
+      <line x1="275" y1="100" x2="315" y2="100" stroke="#ffa657" stroke-width="2"/>
+      <polygon points="315,95 330,100 315,105" fill="#ffa657"/>
+
+      <!-- Phase 2: Parser -->
+      <rect x="335" y="30" width="230" height="140" rx="12" fill="#1c2333" stroke="#3fb950" stroke-width="2"/>
+      <text x="450" y="60" text-anchor="middle" fill="#3fb950" font-size="15" font-weight="bold">PARSER</text>
+      <text x="450" y="85" text-anchor="middle" fill="#c9d1d9" font-size="12">Input: tokens</text>
+      <text x="450" y="110" text-anchor="middle" fill="#c9d1d9" font-size="12">Output: command tree</text>
+      <text x="450" y="135" text-anchor="middle" fill="#c9d1d9" font-size="12">Handles: structure,</text>
+      <text x="450" y="155" text-anchor="middle" fill="#c9d1d9" font-size="12">syntax errors, grouping</text>
+
+      <!-- Arrow -->
+      <line x1="570" y1="100" x2="610" y2="100" stroke="#ffa657" stroke-width="2"/>
+      <polygon points="610,95 625,100 610,105" fill="#ffa657"/>
+
+      <!-- Phase 3: Executor -->
+      <rect x="630" y="30" width="240" height="140" rx="12" fill="#1c2333" stroke="#f85149" stroke-width="2"/>
+      <text x="750" y="60" text-anchor="middle" fill="#f85149" font-size="15" font-weight="bold">EXECUTOR</text>
+      <text x="750" y="85" text-anchor="middle" fill="#c9d1d9" font-size="12">Input: command tree</text>
+      <text x="750" y="110" text-anchor="middle" fill="#c9d1d9" font-size="12">Actions: fork, exec,</text>
+      <text x="750" y="130" text-anchor="middle" fill="#c9d1d9" font-size="12">pipe, redirect, wait</text>
+      <text x="750" y="155" text-anchor="middle" fill="#c9d1d9" font-size="12">Output: exit status</text>
+    </svg>
+  </div>
+</div>
+
+</body>
+</html>

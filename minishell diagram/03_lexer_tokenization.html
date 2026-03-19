@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minishell - Level 3: Lexer & Tokenization</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #e6edf3; padding: 40px; line-height: 1.7; }
+  h1 { font-size: 2.2rem; color: #58a6ff; margin-bottom: 10px; }
+  .subtitle { color: #8b949e; font-size: 1.1rem; margin-bottom: 40px; }
+  .concept-box { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 30px; margin-bottom: 30px; }
+  .concept-box h2 { color: #79c0ff; margin-bottom: 15px; font-size: 1.4rem; }
+  .concept-box p { color: #c9d1d9; margin-bottom: 12px; }
+  .highlight { color: #ffa657; font-weight: 600; }
+  .diagram { background: #0d1117; border: 2px solid #30363d; border-radius: 10px; padding: 30px; margin: 20px 0; overflow-x: auto; }
+  .analogy { background: #1c2333; border-left: 4px solid #58a6ff; padding: 20px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+  .analogy strong { color: #58a6ff; }
+  .level-badge { display: inline-block; background: #ffa657; color: #0d1117; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
+  .token-flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 15px 0; }
+  .token { display: inline-block; padding: 6px 14px; border-radius: 6px; font-family: monospace; font-size: 0.9rem; font-weight: 600; }
+  .token-word { background: #1f6feb33; border: 1px solid #1f6feb; color: #58a6ff; }
+  .token-pipe { background: #ffa65733; border: 1px solid #ffa657; color: #ffa657; }
+  .token-redir { background: #3fb95033; border: 1px solid #3fb950; color: #3fb950; }
+  .token-arrow { color: #ffa657; font-size: 1.2rem; }
+  .warning { background: #f8514915; border: 1px solid #f85149; border-radius: 8px; padding: 15px 20px; margin: 15px 0; }
+  .warning strong { color: #f85149; }
+</style>
+</head>
+<body>
+
+<span class="level-badge">LEVEL 3 - MEDIUM</span>
+<h1>✂️ Lexer: Chopping Input Into Tokens</h1>
+<p class="subtitle">The first real step — turning a raw string into meaningful pieces</p>
+
+<div class="concept-box">
+  <h2>What is "Lexing" (Tokenization)?</h2>
+  <p>Imagine someone says: <span class="highlight">"I want three large pizzas"</span>. Your brain automatically breaks this into meaningful units: [I] [want] [three] [large] [pizzas]. That's exactly what a lexer does to shell input.</p>
+  <p>The lexer takes a <span class="highlight">raw string</span> and splits it into <span class="highlight">tokens</span> — labeled chunks that the parser can understand.</p>
+
+  <div class="analogy">
+    <strong>📬 Mail Sorting Analogy:</strong> A post office receives a pile of letters (raw string). The first step is sorting: this is a letter, this is a package, this is a postcard (different token types). You don't deliver anything yet — you just categorize. That's lexing.
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>Token Types in Minishell</h2>
+  <p>Your lexer needs to recognize these types:</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 380" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="30" text-anchor="middle" fill="#58a6ff" font-size="18" font-weight="bold">Token Types Your Lexer Must Know</text>
+
+      <!-- WORD -->
+      <rect x="30" y="55" width="250" height="130" rx="10" fill="#1f6feb15" stroke="#1f6feb" stroke-width="1.5"/>
+      <text x="155" y="80" text-anchor="middle" fill="#58a6ff" font-size="14" font-weight="bold">WORD</text>
+      <text x="155" y="100" text-anchor="middle" fill="#8b949e" font-size="12">Commands, arguments, filenames</text>
+      <rect x="55" y="112" width="50" height="24" rx="4" fill="#1f6feb33" stroke="#1f6feb"/>
+      <text x="80" y="129" text-anchor="middle" fill="#58a6ff" font-family="monospace" font-size="12">ls</text>
+      <rect x="115" y="112" width="50" height="24" rx="4" fill="#1f6feb33" stroke="#1f6feb"/>
+      <text x="140" y="129" text-anchor="middle" fill="#58a6ff" font-family="monospace" font-size="12">-la</text>
+      <rect x="175" y="112" width="70" height="24" rx="4" fill="#1f6feb33" stroke="#1f6feb"/>
+      <text x="210" y="129" text-anchor="middle" fill="#58a6ff" font-family="monospace" font-size="12">hello</text>
+      <text x="155" y="165" text-anchor="middle" fill="#8b949e" font-size="11">"quoted words" are also WORD</text>
+
+      <!-- PIPE -->
+      <rect x="320" y="55" width="250" height="130" rx="10" fill="#ffa65715" stroke="#ffa657" stroke-width="1.5"/>
+      <text x="445" y="80" text-anchor="middle" fill="#ffa657" font-size="14" font-weight="bold">PIPE</text>
+      <text x="445" y="100" text-anchor="middle" fill="#8b949e" font-size="12">Connects command output → input</text>
+      <rect x="410" y="112" width="70" height="30" rx="6" fill="#ffa65733" stroke="#ffa657"/>
+      <text x="445" y="133" text-anchor="middle" fill="#ffa657" font-family="monospace" font-size="18" font-weight="bold">|</text>
+      <text x="445" y="165" text-anchor="middle" fill="#8b949e" font-size="11">Only one character!</text>
+
+      <!-- REDIRECTIONS -->
+      <rect x="610" y="55" width="260" height="130" rx="10" fill="#3fb95015" stroke="#3fb950" stroke-width="1.5"/>
+      <text x="740" y="80" text-anchor="middle" fill="#3fb950" font-size="14" font-weight="bold">REDIRECTIONS</text>
+      <text x="740" y="100" text-anchor="middle" fill="#8b949e" font-size="12">Redirect input/output to files</text>
+      <rect x="635" y="112" width="40" height="24" rx="4" fill="#3fb95033" stroke="#3fb950"/>
+      <text x="655" y="129" text-anchor="middle" fill="#3fb950" font-family="monospace" font-size="12">&gt;</text>
+      <rect x="685" y="112" width="45" height="24" rx="4" fill="#3fb95033" stroke="#3fb950"/>
+      <text x="708" y="129" text-anchor="middle" fill="#3fb950" font-family="monospace" font-size="12">&gt;&gt;</text>
+      <rect x="740" y="112" width="40" height="24" rx="4" fill="#3fb95033" stroke="#3fb950"/>
+      <text x="760" y="129" text-anchor="middle" fill="#3fb950" font-family="monospace" font-size="12">&lt;</text>
+      <rect x="790" y="112" width="50" height="24" rx="4" fill="#3fb95033" stroke="#3fb950"/>
+      <text x="815" y="129" text-anchor="middle" fill="#3fb950" font-family="monospace" font-size="12">&lt;&lt;</text>
+      <text x="740" y="165" text-anchor="middle" fill="#8b949e" font-size="11">Note: >> and &lt;&lt; are DIFFERENT from > &lt;</text>
+
+      <!-- Big example -->
+      <text x="450" y="220" text-anchor="middle" fill="#d2a8ff" font-size="16" font-weight="bold">Example: Tokenizing a complex command</text>
+
+      <!-- Raw input -->
+      <rect x="50" y="240" width="800" height="40" rx="8" fill="#1c2333" stroke="#30363d"/>
+      <text x="450" y="265" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="14">echo "hello world" | cat -e > output.txt</text>
+
+      <!-- Arrow -->
+      <text x="450" y="300" text-anchor="middle" fill="#ffa657" font-size="20">↓ LEXER ↓</text>
+
+      <!-- Tokens -->
+      <rect x="32" y="315" width="70" height="30" rx="5" fill="#1f6feb33" stroke="#1f6feb"/>
+      <text x="67" y="335" text-anchor="middle" fill="#58a6ff" font-family="monospace" font-size="11">WORD</text>
+      <text x="67" y="358" text-anchor="middle" fill="#8b949e" font-size="10">echo</text>
+
+      <rect x="115" y="315" width="130" height="30" rx="5" fill="#1f6feb33" stroke="#1f6feb"/>
+      <text x="180" y="335" text-anchor="middle" fill="#58a6ff" font-family="monospace" font-size="11">WORD</text>
+      <text x="180" y="358" text-anchor="middle" fill="#8b949e" font-size="10">hello world</text>
+
+      <rect x="260" y="315" width="60" height="30" rx="5" fill="#ffa65733" stroke="#ffa657"/>
+      <text x="290" y="335" text-anchor="middle" fill="#ffa657" font-family="monospace" font-size="11">PIPE</text>
+      <text x="290" y="358" text-anchor="middle" fill="#8b949e" font-size="10">|</text>
+
+      <rect x="335" y="315" width="60" height="30" rx="5" fill="#1f6feb33" stroke="#1f6feb"/>
+      <text x="365" y="335" text-anchor="middle" fill="#58a6ff" font-family="monospace" font-size="11">WORD</text>
+      <text x="365" y="358" text-anchor="middle" fill="#8b949e" font-size="10">cat</text>
+
+      <rect x="410" y="315" width="55" height="30" rx="5" fill="#1f6feb33" stroke="#1f6feb"/>
+      <text x="437" y="335" text-anchor="middle" fill="#58a6ff" font-family="monospace" font-size="11">WORD</text>
+      <text x="437" y="358" text-anchor="middle" fill="#8b949e" font-size="10">-e</text>
+
+      <rect x="480" y="315" width="90" height="30" rx="5" fill="#3fb95033" stroke="#3fb950"/>
+      <text x="525" y="335" text-anchor="middle" fill="#3fb950" font-family="monospace" font-size="11">REDIR_OUT</text>
+      <text x="525" y="358" text-anchor="middle" fill="#8b949e" font-size="10">&gt;</text>
+
+      <rect x="585" y="315" width="110" height="30" rx="5" fill="#1f6feb33" stroke="#1f6feb"/>
+      <text x="640" y="335" text-anchor="middle" fill="#58a6ff" font-family="monospace" font-size="11">WORD</text>
+      <text x="640" y="358" text-anchor="middle" fill="#8b949e" font-size="10">output.txt</text>
+    </svg>
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>The Tricky Part: Quotes!</h2>
+  <p>Quotes change how the lexer works. This is where most bugs happen in minishell:</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 360" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="30" text-anchor="middle" fill="#58a6ff" font-size="17" font-weight="bold">Quote Handling Rules</text>
+
+      <!-- Single quotes -->
+      <rect x="30" y="50" width="400" height="130" rx="10" fill="#d2a8ff15" stroke="#d2a8ff" stroke-width="1.5"/>
+      <text x="230" y="75" text-anchor="middle" fill="#d2a8ff" font-size="15" font-weight="bold">'Single Quotes' → LITERAL</text>
+      <text x="230" y="100" text-anchor="middle" fill="#c9d1d9" font-size="13">Everything inside is taken AS-IS</text>
+      <text x="230" y="125" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">echo '$HOME' → prints: $HOME</text>
+      <text x="230" y="150" text-anchor="middle" fill="#8b949e" font-size="12">No expansion, no special chars</text>
+      <text x="230" y="170" text-anchor="middle" fill="#ffa657" font-size="11">⚠ Cannot contain single quote inside!</text>
+
+      <!-- Double quotes -->
+      <rect x="470" y="50" width="400" height="130" rx="10" fill="#79c0ff15" stroke="#79c0ff" stroke-width="1.5"/>
+      <text x="670" y="75" text-anchor="middle" fill="#79c0ff" font-size="15" font-weight="bold">"Double Quotes" → PARTIAL</text>
+      <text x="670" y="100" text-anchor="middle" fill="#c9d1d9" font-size="13">Spaces protected, BUT $VAR expands!</text>
+      <text x="670" y="125" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">echo "$HOME" → prints: /home/tomi</text>
+      <text x="670" y="150" text-anchor="middle" fill="#8b949e" font-size="12">$ and \ still have special meaning</text>
+      <text x="670" y="170" text-anchor="middle" fill="#3fb950" font-size="11">✓ Can contain single quotes inside</text>
+
+      <!-- No quotes -->
+      <rect x="175" y="210" width="550" height="130" rx="10" fill="#f8514915" stroke="#f85149" stroke-width="1.5"/>
+      <text x="450" y="235" text-anchor="middle" fill="#f85149" font-size="15" font-weight="bold">No Quotes → SPLIT on spaces</text>
+      <text x="450" y="260" text-anchor="middle" fill="#c9d1d9" font-size="13">Spaces separate arguments! Special chars are active.</text>
+      <text x="450" y="285" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">echo hello    world → prints: hello world</text>
+      <text x="450" y="305" text-anchor="middle" fill="#8b949e" font-size="12">(multiple spaces collapse to one!)</text>
+      <text x="450" y="325" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="13">echo hello|world → "hello" then PIPE then "world"</text>
+    </svg>
+  </div>
+
+  <div class="warning">
+    <strong>⚠ Common 42 Mistake:</strong> Treating quotes as token delimiters. They're NOT. Quotes are part of the WORD token. <code>echo "hello"'world'end</code> is ONE token: <code>helloworld end</code>. The quotes just control how characters inside are interpreted.
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>Lexer State Machine (How to Build It)</h2>
+  <p>Your lexer walks through the string character by character, maintaining a <span class="highlight">state</span>:</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 320" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arr2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#ffa657"/>
+        </marker>
+        <marker id="arr3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#d2a8ff"/>
+        </marker>
+        <marker id="arr4" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#79c0ff"/>
+        </marker>
+      </defs>
+
+      <text x="450" y="25" text-anchor="middle" fill="#58a6ff" font-size="16" font-weight="bold">Lexer State Machine</text>
+
+      <!-- DEFAULT state -->
+      <circle cx="150" cy="160" r="60" fill="#238636" opacity="0.15" stroke="#238636" stroke-width="2"/>
+      <text x="150" y="155" text-anchor="middle" fill="#3fb950" font-size="14" font-weight="bold">DEFAULT</text>
+      <text x="150" y="175" text-anchor="middle" fill="#8b949e" font-size="10">normal mode</text>
+
+      <!-- IN_SINGLE_QUOTE state -->
+      <circle cx="450" cy="80" r="60" fill="#d2a8ff" opacity="0.15" stroke="#d2a8ff" stroke-width="2"/>
+      <text x="450" y="75" text-anchor="middle" fill="#d2a8ff" font-size="13" font-weight="bold">IN_SQUOTE</text>
+      <text x="450" y="95" text-anchor="middle" fill="#8b949e" font-size="10">inside ' ... '</text>
+
+      <!-- IN_DOUBLE_QUOTE state -->
+      <circle cx="450" cy="240" r="60" fill="#79c0ff" opacity="0.15" stroke="#79c0ff" stroke-width="2"/>
+      <text x="450" y="235" text-anchor="middle" fill="#79c0ff" font-size="13" font-weight="bold">IN_DQUOTE</text>
+      <text x="450" y="255" text-anchor="middle" fill="#8b949e" font-size="10">inside " ... "</text>
+
+      <!-- TOKEN_COMPLETE -->
+      <circle cx="750" cy="160" r="60" fill="#ffa657" opacity="0.15" stroke="#ffa657" stroke-width="2"/>
+      <text x="750" y="148" text-anchor="middle" fill="#ffa657" font-size="13" font-weight="bold">EMIT</text>
+      <text x="750" y="165" text-anchor="middle" fill="#ffa657" font-size="13" font-weight="bold">TOKEN</text>
+      <text x="750" y="182" text-anchor="middle" fill="#8b949e" font-size="10">save & restart</text>
+
+      <!-- DEFAULT → IN_SQUOTE (encounter ') -->
+      <path d="M 200,130 Q 300,50 390,80" fill="none" stroke="#d2a8ff" stroke-width="1.5" marker-end="url(#arr3)"/>
+      <text x="280" y="65" text-anchor="middle" fill="#d2a8ff" font-size="11">see '</text>
+
+      <!-- IN_SQUOTE → DEFAULT (encounter closing ') -->
+      <path d="M 390,100 Q 300,130 210,145" fill="none" stroke="#d2a8ff" stroke-width="1.5" marker-end="url(#arr3)"/>
+      <text x="280" y="135" text-anchor="middle" fill="#d2a8ff" font-size="11">see closing '</text>
+
+      <!-- DEFAULT → IN_DQUOTE (encounter ") -->
+      <path d="M 200,190 Q 300,270 390,250" fill="none" stroke="#79c0ff" stroke-width="1.5" marker-end="url(#arr4)"/>
+      <text x="275" y="262" text-anchor="middle" fill="#79c0ff" font-size="11">see "</text>
+
+      <!-- IN_DQUOTE → DEFAULT (encounter closing ") -->
+      <path d="M 390,225 Q 300,200 210,175" fill="none" stroke="#79c0ff" stroke-width="1.5" marker-end="url(#arr4)"/>
+      <text x="280" y="195" text-anchor="middle" fill="#79c0ff" font-size="11">see closing "</text>
+
+      <!-- DEFAULT → EMIT (space, |, <, >) -->
+      <line x1="210" y1="160" x2="688" y2="160" stroke="#ffa657" stroke-width="1.5" marker-end="url(#arr2)"/>
+      <text x="450" y="175" text-anchor="middle" fill="#ffa657" font-size="11">space, |, &lt;, &gt;, \0 → emit current token</text>
+
+      <!-- EMIT → DEFAULT (loop back) -->
+      <path d="M 750,220 Q 750,300 400,300 Q 100,300 100,200" fill="none" stroke="#3fb950" stroke-width="1.2" stroke-dasharray="5,4"/>
+      <text x="450" y="312" text-anchor="middle" fill="#3fb950" font-size="11">continue scanning</text>
+    </svg>
+  </div>
+
+  <div class="analogy">
+    <strong>🚦 Traffic Light Analogy:</strong> Your lexer is like driving through a city. In DEFAULT mode, you drive normally. When you see a single quote, you enter a tunnel (IN_SQUOTE) — everything passes through unchanged until you exit the tunnel. A double quote is like a toll road (IN_DQUOTE) — some rules still apply ($expansion). Spaces are like intersections — they separate one trip (token) from the next.
+  </div>
+</div>
+
+</body>
+</html>

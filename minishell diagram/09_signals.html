@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minishell - Level 9: Signal Handling</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #e6edf3; padding: 40px; line-height: 1.7; }
+  h1 { font-size: 2.2rem; color: #58a6ff; margin-bottom: 10px; }
+  .subtitle { color: #8b949e; font-size: 1.1rem; margin-bottom: 40px; }
+  .concept-box { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 30px; margin-bottom: 30px; }
+  .concept-box h2 { color: #79c0ff; margin-bottom: 15px; font-size: 1.4rem; }
+  .concept-box p { color: #c9d1d9; margin-bottom: 12px; }
+  .highlight { color: #ffa657; font-weight: 600; }
+  .diagram { background: #0d1117; border: 2px solid #30363d; border-radius: 10px; padding: 30px; margin: 20px 0; overflow-x: auto; }
+  .analogy { background: #1c2333; border-left: 4px solid #58a6ff; padding: 20px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+  .analogy strong { color: #58a6ff; }
+  .level-badge { display: inline-block; background: #d2a8ff; color: #0d1117; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
+  .code-block { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; font-family: 'Fira Code', monospace; color: #c9d1d9; margin: 15px 0; font-size: 0.9rem; white-space: pre; overflow-x: auto; line-height: 1.8; }
+  .code-comment { color: #8b949e; }
+  .code-keyword { color: #ff7b72; }
+  .code-func { color: #d2a8ff; }
+  .warning { background: #f8514915; border: 1px solid #f85149; border-radius: 8px; padding: 15px 20px; margin: 15px 0; }
+  .warning strong { color: #f85149; }
+</style>
+</head>
+<body>
+
+<span class="level-badge">LEVEL 9 - MEDIUM</span>
+<h1>📡 Signal Handling</h1>
+<p class="subtitle">How Ctrl+C, Ctrl+D, and Ctrl+\ work (and why they're different)</p>
+
+<div class="concept-box">
+  <h2>What Are Signals?</h2>
+  <p>Signals are <span class="highlight">software interrupts</span> — messages from the OS to a process. They're like someone tapping your shoulder while you're working. You can ignore the tap, do something specific when tapped, or let the default behavior happen (like stopping).</p>
+
+  <div class="analogy">
+    <strong>📱 Phone Analogy:</strong> Signals are like phone notifications. SIGINT (Ctrl+C) is like someone calling you — you can answer, ignore, or let it go to voicemail (default). SIGQUIT (Ctrl+\) is like a fire alarm — much harder to ignore. Ctrl+D isn't a signal at all — it's like hanging up the phone (closing the input stream).
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>The 3 Key Inputs in Minishell</h2>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 350" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="25" text-anchor="middle" fill="#58a6ff" font-size="16" font-weight="bold">Ctrl+C vs Ctrl+D vs Ctrl+\ — They're All Different!</text>
+
+      <!-- Ctrl+C -->
+      <rect x="20" y="50" width="270" height="260" rx="12" fill="#f8514915" stroke="#f85149" stroke-width="2"/>
+      <text x="155" y="80" text-anchor="middle" fill="#f85149" font-size="18" font-weight="bold">Ctrl+C</text>
+      <text x="155" y="105" text-anchor="middle" fill="#c9d1d9" font-size="13">Sends SIGINT (signal 2)</text>
+      <line x1="40" y1="115" x2="270" y2="115" stroke="#30363d"/>
+      <text x="155" y="140" text-anchor="middle" fill="#79c0ff" font-size="12" font-weight="bold">At prompt:</text>
+      <text x="155" y="158" text-anchor="middle" fill="#8b949e" font-size="11">Clear line, show new prompt</text>
+      <text x="155" y="175" text-anchor="middle" fill="#8b949e" font-size="11">$? = 130</text>
+      <text x="155" y="200" text-anchor="middle" fill="#79c0ff" font-size="12" font-weight="bold">During command:</text>
+      <text x="155" y="218" text-anchor="middle" fill="#8b949e" font-size="11">Kill the running child</text>
+      <text x="155" y="235" text-anchor="middle" fill="#8b949e" font-size="11">Shell shows new prompt</text>
+      <text x="155" y="260" text-anchor="middle" fill="#79c0ff" font-size="12" font-weight="bold">In heredoc:</text>
+      <text x="155" y="278" text-anchor="middle" fill="#8b949e" font-size="11">Cancel heredoc</text>
+      <text x="155" y="295" text-anchor="middle" fill="#8b949e" font-size="11">Return to prompt</text>
+
+      <!-- Ctrl+D -->
+      <rect x="315" y="50" width="270" height="260" rx="12" fill="#3fb95015" stroke="#3fb950" stroke-width="2"/>
+      <text x="450" y="80" text-anchor="middle" fill="#3fb950" font-size="18" font-weight="bold">Ctrl+D</text>
+      <text x="450" y="105" text-anchor="middle" fill="#ffa657" font-size="13">NOT a signal! It's EOF.</text>
+      <line x1="335" y1="115" x2="565" y2="115" stroke="#30363d"/>
+      <text x="450" y="140" text-anchor="middle" fill="#79c0ff" font-size="12" font-weight="bold">At empty prompt:</text>
+      <text x="450" y="158" text-anchor="middle" fill="#8b949e" font-size="11">readline() returns NULL</text>
+      <text x="450" y="175" text-anchor="middle" fill="#8b949e" font-size="11">→ Exit the shell</text>
+      <text x="450" y="200" text-anchor="middle" fill="#79c0ff" font-size="12" font-weight="bold">With text typed:</text>
+      <text x="450" y="218" text-anchor="middle" fill="#8b949e" font-size="11">Sends what's typed so far</text>
+      <text x="450" y="235" text-anchor="middle" fill="#8b949e" font-size="11">(readline handles this)</text>
+      <text x="450" y="260" text-anchor="middle" fill="#79c0ff" font-size="12" font-weight="bold">In heredoc:</text>
+      <text x="450" y="278" text-anchor="middle" fill="#8b949e" font-size="11">Warning: delimiter not found</text>
+      <text x="450" y="295" text-anchor="middle" fill="#8b949e" font-size="11">Use what was typed so far</text>
+
+      <!-- Ctrl+\ -->
+      <rect x="610" y="50" width="270" height="260" rx="12" fill="#d2a8ff15" stroke="#d2a8ff" stroke-width="2"/>
+      <text x="745" y="80" text-anchor="middle" fill="#d2a8ff" font-size="18" font-weight="bold">Ctrl+\</text>
+      <text x="745" y="105" text-anchor="middle" fill="#c9d1d9" font-size="13">Sends SIGQUIT (signal 3)</text>
+      <line x1="630" y1="115" x2="860" y2="115" stroke="#30363d"/>
+      <text x="745" y="140" text-anchor="middle" fill="#79c0ff" font-size="12" font-weight="bold">At prompt:</text>
+      <text x="745" y="158" text-anchor="middle" fill="#3fb950" font-size="11">Do NOTHING (ignore it)</text>
+      <text x="745" y="200" text-anchor="middle" fill="#79c0ff" font-size="12" font-weight="bold">During command:</text>
+      <text x="745" y="218" text-anchor="middle" fill="#8b949e" font-size="11">Kill child with core dump</text>
+      <text x="745" y="235" text-anchor="middle" fill="#8b949e" font-size="11">Print "Quit (core dumped)"</text>
+      <text x="745" y="253" text-anchor="middle" fill="#8b949e" font-size="11">$? = 131</text>
+    </svg>
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>Signal Behavior in Different Contexts</h2>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 220" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="25" text-anchor="middle" fill="#58a6ff" font-size="15" font-weight="bold">You Must Change Signal Handlers Based on Context!</text>
+
+      <!-- Context 1: Interactive prompt -->
+      <rect x="20" y="50" width="270" height="150" rx="10" fill="#1c2333" stroke="#58a6ff"/>
+      <text x="155" y="75" text-anchor="middle" fill="#58a6ff" font-size="13" font-weight="bold">📝 At the prompt</text>
+      <text x="155" y="100" text-anchor="middle" fill="#8b949e" font-size="11">(waiting for user input)</text>
+      <line x1="40" y1="110" x2="270" y2="110" stroke="#30363d"/>
+      <text x="40" y="132" fill="#f85149" font-size="11">SIGINT: custom handler</text>
+      <text x="60" y="150" fill="#8b949e" font-size="10">→ newline + new prompt</text>
+      <text x="40" y="172" fill="#d2a8ff" font-size="11">SIGQUIT: SIG_IGN (ignore)</text>
+      <text x="60" y="190" fill="#8b949e" font-size="10">→ do nothing</text>
+
+      <!-- Context 2: Child executing -->
+      <rect x="315" y="50" width="270" height="150" rx="10" fill="#1c2333" stroke="#3fb950"/>
+      <text x="450" y="75" text-anchor="middle" fill="#3fb950" font-size="13" font-weight="bold">⚙️ Child process</text>
+      <text x="450" y="100" text-anchor="middle" fill="#8b949e" font-size="11">(after fork, before exec)</text>
+      <line x1="335" y1="110" x2="565" y2="110" stroke="#30363d"/>
+      <text x="335" y="132" fill="#f85149" font-size="11">SIGINT: SIG_DFL (default)</text>
+      <text x="355" y="150" fill="#8b949e" font-size="10">→ let it kill the child</text>
+      <text x="335" y="172" fill="#d2a8ff" font-size="11">SIGQUIT: SIG_DFL (default)</text>
+      <text x="355" y="190" fill="#8b949e" font-size="10">→ let it kill the child</text>
+
+      <!-- Context 3: Parent waiting -->
+      <rect x="610" y="50" width="270" height="150" rx="10" fill="#1c2333" stroke="#ffa657"/>
+      <text x="745" y="75" text-anchor="middle" fill="#ffa657" font-size="13" font-weight="bold">⏳ Parent waiting</text>
+      <text x="745" y="100" text-anchor="middle" fill="#8b949e" font-size="11">(child is running)</text>
+      <line x1="630" y1="110" x2="860" y2="110" stroke="#30363d"/>
+      <text x="630" y="132" fill="#f85149" font-size="11">SIGINT: SIG_IGN (ignore)</text>
+      <text x="650" y="150" fill="#8b949e" font-size="10">→ let child handle it</text>
+      <text x="630" y="172" fill="#d2a8ff" font-size="11">SIGQUIT: SIG_IGN (ignore)</text>
+      <text x="650" y="190" fill="#8b949e" font-size="10">→ let child handle it</text>
+    </svg>
+  </div>
+
+  <div class="warning">
+    <strong>⚠ Common Mistake:</strong> Not restoring signal handlers. When the parent ignores SIGINT while waiting for a child, it MUST set it back to the custom handler once the child exits and we return to the prompt!
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>The Code Pattern</h2>
+
+  <div class="code-block"><span class="code-comment">// Global variable for signal communication (only ONE allowed!)</span>
+<span class="code-keyword">volatile sig_atomic_t</span> g_signal = 0;
+
+<span class="code-keyword">void</span> <span class="code-func">sigint_handler</span>(<span class="code-keyword">int</span> sig)
+{
+    g_signal = sig;
+    <span class="code-func">write</span>(1, "\n", 1);           <span class="code-comment">// newline after ^C</span>
+    <span class="code-func">rl_on_new_line</span>();            <span class="code-comment">// tell readline we're on new line</span>
+    <span class="code-func">rl_replace_line</span>("", 0);     <span class="code-comment">// clear current input</span>
+    <span class="code-func">rl_redisplay</span>();              <span class="code-comment">// show fresh prompt</span>
+}
+
+<span class="code-comment">// Setup signals for interactive mode (at prompt):</span>
+<span class="code-func">signal</span>(SIGINT, sigint_handler);  <span class="code-comment">// Ctrl+C: our handler</span>
+<span class="code-func">signal</span>(SIGQUIT, SIG_IGN);        <span class="code-comment">// Ctrl+\: ignore</span>
+
+<span class="code-comment">// In child process (after fork):</span>
+<span class="code-func">signal</span>(SIGINT, SIG_DFL);   <span class="code-comment">// restore defaults so child can be killed</span>
+<span class="code-func">signal</span>(SIGQUIT, SIG_DFL);
+
+<span class="code-comment">// ⚠ Only ONE global variable allowed by 42 subject!</span>
+<span class="code-comment">// Use it to communicate signal info between handler and main loop</span></div>
+</div>
+
+</body>
+</html>

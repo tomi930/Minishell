@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minishell - Level 4: Parsing & AST</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #e6edf3; padding: 40px; line-height: 1.7; }
+  h1 { font-size: 2.2rem; color: #58a6ff; margin-bottom: 10px; }
+  .subtitle { color: #8b949e; font-size: 1.1rem; margin-bottom: 40px; }
+  .concept-box { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 30px; margin-bottom: 30px; }
+  .concept-box h2 { color: #79c0ff; margin-bottom: 15px; font-size: 1.4rem; }
+  .concept-box p { color: #c9d1d9; margin-bottom: 12px; }
+  .highlight { color: #ffa657; font-weight: 600; }
+  .diagram { background: #0d1117; border: 2px solid #30363d; border-radius: 10px; padding: 30px; margin: 20px 0; overflow-x: auto; }
+  .analogy { background: #1c2333; border-left: 4px solid #58a6ff; padding: 20px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+  .analogy strong { color: #58a6ff; }
+  .level-badge { display: inline-block; background: #ffa657; color: #0d1117; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 15px; font-weight: 600; }
+  .code-block { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; font-family: 'Fira Code', monospace; color: #c9d1d9; margin: 15px 0; font-size: 0.9rem; white-space: pre; overflow-x: auto; line-height: 1.8; }
+  .code-comment { color: #8b949e; }
+  .code-keyword { color: #ff7b72; }
+  .code-type { color: #79c0ff; }
+  .code-field { color: #ffa657; }
+  .vs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+  .vs-card { background: #0d1117; border: 1px solid #30363d; border-radius: 10px; padding: 20px; }
+  .vs-card h3 { color: #79c0ff; margin-bottom: 10px; }
+  .vs-card p { color: #8b949e; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+
+<span class="level-badge">LEVEL 4 - MEDIUM</span>
+<h1>🌳 Parsing: Building the Command Tree</h1>
+<p class="subtitle">Turning flat tokens into a structure the executor can walk through</p>
+
+<div class="concept-box">
+  <h2>Why Do We Need a Parser?</h2>
+  <p>The lexer gave us tokens, but tokens are just a <span class="highlight">flat list</span>. The parser needs to understand the <span class="highlight">relationships</span> between them: which words belong to which command? Where does the pipe split things? Which file does the redirection point to?</p>
+
+  <div class="analogy">
+    <strong>📖 Sentence Analogy:</strong> "The cat sat on the mat" — a list of words (tokens). But the PARSER understands: "The cat" = subject, "sat" = verb, "on the mat" = where. It builds MEANING from flat data. Your parser does the same: [ls] [-la] [|] [grep] [.c] → "run ls with -la, pipe its output to grep with .c".
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>Two Approaches: Linked List vs Tree</h2>
+  <p>At 42, most students choose one of these. Both work — pick what makes sense to you:</p>
+
+  <div class="vs-grid">
+    <div class="vs-card">
+      <h3>Option A: Linked List of Commands</h3>
+      <p>Simpler to implement. Each node = one simple command. Nodes connected by pipe relationship.</p>
+      <p style="color: #3fb950; margin-top: 10px;">✓ Easier to build and debug</p>
+      <p style="color: #ffa657;">✗ Harder to extend later</p>
+    </div>
+    <div class="vs-card">
+      <h3>Option B: Binary Tree (AST)</h3>
+      <p>More elegant. Pipes become tree nodes with left/right children. Closer to how real shells work.</p>
+      <p style="color: #3fb950; margin-top: 10px;">✓ Clean recursive execution</p>
+      <p style="color: #ffa657;">✗ Slightly harder to build</p>
+    </div>
+  </div>
+</div>
+
+<div class="concept-box">
+  <h2>Option A: Command Table (Linked List)</h2>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 350" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="25" text-anchor="middle" fill="#58a6ff" font-size="16" font-weight="bold">ls -la | grep .c | wc -l > count.txt</text>
+
+      <!-- Command 1 -->
+      <rect x="30" y="60" width="230" height="150" rx="10" fill="#1c2333" stroke="#1f6feb" stroke-width="2"/>
+      <text x="145" y="85" text-anchor="middle" fill="#58a6ff" font-size="14" font-weight="bold">Command 1</text>
+      <line x1="50" y1="95" x2="240" y2="95" stroke="#30363d"/>
+      <text x="60" y="115" fill="#8b949e" font-size="12">cmd: "ls"</text>
+      <text x="60" y="135" fill="#8b949e" font-size="12">args: ["ls", "-la"]</text>
+      <text x="60" y="155" fill="#8b949e" font-size="12">redir_in: NULL</text>
+      <text x="60" y="175" fill="#8b949e" font-size="12">redir_out: NULL</text>
+      <text x="60" y="195" fill="#3fb950" font-size="12">pipe_out: YES →</text>
+
+      <!-- Arrow -->
+      <line x1="260" y1="135" x2="310" y2="135" stroke="#ffa657" stroke-width="2"/>
+      <polygon points="310,130 325,135 310,140" fill="#ffa657"/>
+      <text x="292" y="125" text-anchor="middle" fill="#ffa657" font-size="10">PIPE</text>
+
+      <!-- Command 2 -->
+      <rect x="330" y="60" width="230" height="150" rx="10" fill="#1c2333" stroke="#3fb950" stroke-width="2"/>
+      <text x="445" y="85" text-anchor="middle" fill="#3fb950" font-size="14" font-weight="bold">Command 2</text>
+      <line x1="350" y1="95" x2="540" y2="95" stroke="#30363d"/>
+      <text x="360" y="115" fill="#8b949e" font-size="12">cmd: "grep"</text>
+      <text x="360" y="135" fill="#8b949e" font-size="12">args: ["grep", ".c"]</text>
+      <text x="360" y="155" fill="#8b949e" font-size="12">redir_in: NULL</text>
+      <text x="360" y="175" fill="#8b949e" font-size="12">redir_out: NULL</text>
+      <text x="360" y="195" fill="#3fb950" font-size="12">pipe_out: YES →</text>
+
+      <!-- Arrow -->
+      <line x1="560" y1="135" x2="610" y2="135" stroke="#ffa657" stroke-width="2"/>
+      <polygon points="610,130 625,135 610,140" fill="#ffa657"/>
+      <text x="592" y="125" text-anchor="middle" fill="#ffa657" font-size="10">PIPE</text>
+
+      <!-- Command 3 -->
+      <rect x="630" y="60" width="240" height="150" rx="10" fill="#1c2333" stroke="#f85149" stroke-width="2"/>
+      <text x="750" y="85" text-anchor="middle" fill="#f85149" font-size="14" font-weight="bold">Command 3</text>
+      <line x1="650" y1="95" x2="850" y2="95" stroke="#30363d"/>
+      <text x="660" y="115" fill="#8b949e" font-size="12">cmd: "wc"</text>
+      <text x="660" y="135" fill="#8b949e" font-size="12">args: ["wc", "-l"]</text>
+      <text x="660" y="155" fill="#8b949e" font-size="12">redir_in: NULL</text>
+      <text x="660" y="175" fill="#ffa657" font-size="12">redir_out: "count.txt" (>)</text>
+      <text x="660" y="195" fill="#8b949e" font-size="12">pipe_out: NO (last cmd)</text>
+
+      <!-- Struct definition -->
+      <text x="450" y="250" text-anchor="middle" fill="#d2a8ff" font-size="14" font-weight="bold">The struct that makes this work:</text>
+    </svg>
+  </div>
+
+  <div class="code-block"><span class="code-keyword">typedef struct</span> <span class="code-type">s_cmd</span>
+{
+    <span class="code-type">char</span>            **<span class="code-field">args</span>;       <span class="code-comment">// ["ls", "-la", NULL] (NULL-terminated!)</span>
+    <span class="code-type">t_redir</span>         *<span class="code-field">redirections</span>; <span class="code-comment">// linked list of redirections</span>
+    <span class="code-keyword">struct</span> <span class="code-type">s_cmd</span>   *<span class="code-field">next</span>;       <span class="code-comment">// next command (after pipe)</span>
+}   <span class="code-type">t_cmd</span>;
+
+<span class="code-keyword">typedef struct</span> <span class="code-type">s_redir</span>
+{
+    <span class="code-type">int</span>             <span class="code-field">type</span>;       <span class="code-comment">// REDIR_IN, REDIR_OUT, APPEND, HEREDOC</span>
+    <span class="code-type">char</span>            *<span class="code-field">file</span>;       <span class="code-comment">// filename or heredoc delimiter</span>
+    <span class="code-keyword">struct</span> <span class="code-type">s_redir</span> *<span class="code-field">next</span>;       <span class="code-comment">// multiple redirections possible!</span>
+}   <span class="code-type">t_redir</span>;</div>
+</div>
+
+<div class="concept-box">
+  <h2>Option B: Binary Tree (AST)</h2>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 400" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="25" text-anchor="middle" fill="#58a6ff" font-size="16" font-weight="bold">ls -la | grep .c | wc -l > count.txt</text>
+      <text x="450" y="48" text-anchor="middle" fill="#8b949e" font-size="12">As a binary tree — pipes are internal nodes, commands are leaves</text>
+
+      <!-- Top PIPE node -->
+      <circle cx="450" cy="110" r="35" fill="#ffa657" opacity="0.2" stroke="#ffa657" stroke-width="2"/>
+      <text x="450" y="115" text-anchor="middle" fill="#ffa657" font-size="16" font-weight="bold">PIPE</text>
+
+      <!-- Left branch to second PIPE -->
+      <line x1="420" y1="138" x2="250" y2="195" stroke="#8b949e" stroke-width="1.5"/>
+
+      <!-- Right branch to wc -->
+      <line x1="480" y1="138" x2="650" y2="195" stroke="#8b949e" stroke-width="1.5"/>
+
+      <!-- Second PIPE node -->
+      <circle cx="250" cy="220" r="35" fill="#ffa657" opacity="0.2" stroke="#ffa657" stroke-width="2"/>
+      <text x="250" y="225" text-anchor="middle" fill="#ffa657" font-size="16" font-weight="bold">PIPE</text>
+
+      <!-- Left to ls -->
+      <line x1="220" y1="248" x2="120" y2="305" stroke="#8b949e" stroke-width="1.5"/>
+
+      <!-- Right to grep -->
+      <line x1="280" y1="248" x2="380" y2="305" stroke="#8b949e" stroke-width="1.5"/>
+
+      <!-- ls node -->
+      <rect x="50" y="295" width="140" height="70" rx="10" fill="#1f6feb15" stroke="#1f6feb" stroke-width="2"/>
+      <text x="120" y="320" text-anchor="middle" fill="#58a6ff" font-size="13" font-weight="bold">CMD</text>
+      <text x="120" y="345" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="12">ls -la</text>
+
+      <!-- grep node -->
+      <rect x="310" y="295" width="140" height="70" rx="10" fill="#3fb95015" stroke="#3fb950" stroke-width="2"/>
+      <text x="380" y="320" text-anchor="middle" fill="#3fb950" font-size="13" font-weight="bold">CMD</text>
+      <text x="380" y="345" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="12">grep .c</text>
+
+      <!-- wc node -->
+      <rect x="580" y="195" width="140" height="80" rx="10" fill="#f8514915" stroke="#f85149" stroke-width="2"/>
+      <text x="650" y="220" text-anchor="middle" fill="#f85149" font-size="13" font-weight="bold">CMD</text>
+      <text x="650" y="245" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="12">wc -l</text>
+      <text x="650" y="263" text-anchor="middle" fill="#ffa657" font-size="10">> count.txt</text>
+
+      <!-- Execution order -->
+      <text x="780" y="120" fill="#d2a8ff" font-size="13" font-weight="bold">Execution:</text>
+      <text x="780" y="145" fill="#8b949e" font-size="11">1. Go left recursively</text>
+      <text x="780" y="165" fill="#8b949e" font-size="11">2. Hit PIPE → go left again</text>
+      <text x="780" y="185" fill="#8b949e" font-size="11">3. Hit CMD "ls" → execute</text>
+      <text x="780" y="205" fill="#8b949e" font-size="11">4. Pipe output → "grep"</text>
+      <text x="780" y="225" fill="#8b949e" font-size="11">5. Pipe output → "wc"</text>
+      <text x="780" y="245" fill="#3fb950" font-size="11">6. Redirect to count.txt</text>
+    </svg>
+  </div>
+
+  <div class="code-block"><span class="code-keyword">typedef enum</span> <span class="code-type">e_node_type</span>
+{
+    <span class="code-field">NODE_CMD</span>,     <span class="code-comment">// leaf: a simple command with args</span>
+    <span class="code-field">NODE_PIPE</span>,    <span class="code-comment">// internal: left | right</span>
+}   <span class="code-type">t_node_type</span>;
+
+<span class="code-keyword">typedef struct</span> <span class="code-type">s_node</span>
+{
+    <span class="code-type">t_node_type</span>     <span class="code-field">type</span>;
+    <span class="code-comment">// For CMD nodes:</span>
+    <span class="code-type">char</span>            **<span class="code-field">args</span>;
+    <span class="code-type">t_redir</span>         *<span class="code-field">redirections</span>;
+    <span class="code-comment">// For PIPE nodes:</span>
+    <span class="code-keyword">struct</span> <span class="code-type">s_node</span>  *<span class="code-field">left</span>;
+    <span class="code-keyword">struct</span> <span class="code-type">s_node</span>  *<span class="code-field">right</span>;
+}   <span class="code-type">t_node</span>;</div>
+</div>
+
+<div class="concept-box">
+  <h2>Syntax Error Detection</h2>
+  <p>The parser must also catch <span class="highlight">invalid input</span> before trying to execute:</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 200" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="25" text-anchor="middle" fill="#f85149" font-size="16" font-weight="bold">Syntax Errors Your Parser Must Catch</text>
+
+      <rect x="20" y="45" width="200" height="60" rx="8" fill="#f8514915" stroke="#f85149"/>
+      <text x="120" y="70" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="12">| ls</text>
+      <text x="120" y="90" text-anchor="middle" fill="#f85149" font-size="10">pipe at start</text>
+
+      <rect x="240" y="45" width="200" height="60" rx="8" fill="#f8514915" stroke="#f85149"/>
+      <text x="340" y="70" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="12">ls |</text>
+      <text x="340" y="90" text-anchor="middle" fill="#f85149" font-size="10">pipe at end (nothing after)</text>
+
+      <rect x="460" y="45" width="200" height="60" rx="8" fill="#f8514915" stroke="#f85149"/>
+      <text x="560" y="70" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="12">ls | | grep</text>
+      <text x="560" y="90" text-anchor="middle" fill="#f85149" font-size="10">double pipe</text>
+
+      <rect x="680" y="45" width="200" height="60" rx="8" fill="#f8514915" stroke="#f85149"/>
+      <text x="780" y="70" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="12">echo ></text>
+      <text x="780" y="90" text-anchor="middle" fill="#f85149" font-size="10">redir without filename</text>
+
+      <rect x="130" y="125" width="250" height="60" rx="8" fill="#f8514915" stroke="#f85149"/>
+      <text x="255" y="150" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="12">echo "unclosed quote</text>
+      <text x="255" y="170" text-anchor="middle" fill="#f85149" font-size="10">unclosed quotes</text>
+
+      <rect x="420" y="125" width="310" height="60" rx="8" fill="#f8514915" stroke="#f85149"/>
+      <text x="575" y="150" text-anchor="middle" fill="#c9d1d9" font-family="monospace" font-size="12">echo > > file</text>
+      <text x="575" y="170" text-anchor="middle" fill="#f85149" font-size="10">consecutive redirections without file</text>
+    </svg>
+  </div>
+
+  <p>When you detect a syntax error, print: <code style="color: #f85149;">minishell: syntax error near unexpected token `|'</code> (matching bash's format) and set <code>$?</code> to <span class="highlight">2</span>.</p>
+</div>
+
+</body>
+</html>
