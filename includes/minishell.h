@@ -72,5 +72,10 @@ int		builtin_exit(t_cmd *cmd);
 /* parsing */
 t_cmd	*parse(char *line, t_env *env);
 void	free_cmd(t_cmd *cmd);
+int		has_unclosed_quotes(const char *line);
+char	**tokenize(char *line);
+void	free_tokens(char **tokens);
+char	*expand_token(const char *token, t_env *env);
+char	*strip_quotes(const char *token);
 
 #endif
