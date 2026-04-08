@@ -69,6 +69,12 @@ void	exec_cmd(t_cmd *cmd, t_env *env)
 		exit(1);
 	}
 	waitpid(pid, &status, 0);
+	if (WIFEXITED(status)) 
+    	g_exit_status = WEXITSTATUS(status);
+	else if (WIFSIGNALED(status))
+    	g_exit_status = 128 + WTERMSIG(status);
+	
+
 }
 
 void	execute(t_cmd *cmd, t_env **env)

@@ -1,6 +1,6 @@
 #ifndef MINISHELL_H
 # define MINISHELL_H
-`
+
 # include <stdlib.h>
 # include <unistd.h>
 # include <fcntl.h>
@@ -9,6 +9,8 @@
 # include <readline/readline.h>
 # include <readline/history.h>
 # include "../libft/libft.h"
+
+extern int g_exit_status;
 
 typedef struct s_env
 {
@@ -20,12 +22,28 @@ typedef struct s_env
 typedef struct s_cmd
 {
 	char			**args;
-	char			*infile;
-	char			*outfile;
-	int				append;
-	int				is_heredoc;
+	char			*infile; //probably will delete later bc of redirs
+	char			*outfile; //probably will delete later bc of redirs
+	int				append; //probably will delete later bc of redirs
+	int				is_heredoc; //probably will delete later bc of redirs
+	t_redir			*redirs;
 	struct s_cmd	*next;
 }	t_cmd;
+
+typedef enum e_redir_type
+{
+    REDIR_IN,
+    REDIR_OUT,
+    REDIR_APPEND,
+    REDIR_HEREDOC
+}   t_redir_type;
+
+typedef struct s_redir
+{
+    t_redir_type    type;
+    char            *target;
+    struct s_redir  *next;
+}   t_redir;
 
 /* env_init.c */
 char	*get_env_key(char *environ);
