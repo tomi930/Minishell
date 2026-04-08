@@ -57,6 +57,11 @@ void	set_env(char *key, char *value, t_env **head);
 void	remove_env(char *key, t_env **head);
 char	**env_to_array(t_env *head);
 
+/* signals.c */
+void	handle_sigint(int sig);
+void	signals_interactive(void);
+void	signals_exec(void);
+
 /* execute.c */
 char	*find_path(char *cmd, t_env *env);
 void	exec_cmd(t_cmd *cmd, t_env *env);

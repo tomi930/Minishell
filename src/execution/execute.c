@@ -52,6 +52,7 @@ void	exec_cmd(t_cmd *cmd, t_env *env)
 	pid_t	pid;
 	int		status;
 
+	signals_exec();
 	pid = fork();
 	if (pid == 0)
 	{
@@ -69,13 +70,12 @@ void	exec_cmd(t_cmd *cmd, t_env *env)
 		exit(1);
 	}
 	waitpid(pid, &status, 0);
+	signals_interactive();
 	if (WIFEXITED(status)) 
     	g_exit_status = WEXITSTATUS(status);
 	else if (WIFSIGNALED(status))
     	g_exit_status = 128 + WTERMSIG(status);
-	
-
-}
+}  // function needs to be refactored: 28 lines 
 
 void	execute(t_cmd *cmd, t_env **env)
 {
