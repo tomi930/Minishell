@@ -1,3 +1,5 @@
+#include "minishell.h"
+
 void	set_env(char *key, char *value, t_env **head)
 {
 	t_env	*current;

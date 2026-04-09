@@ -5,21 +5,44 @@ int g_exit_status = 0;
 
 int main(int argc, char **argv, char **envp)
 {
+    (void)argc;
+    (void)argv;
 	char	*line;
 	t_env	*env_head;
+    t_cmd *cmd;
 
 	env_head = copy_env(envp);
 	signals_interactive();
+    // while (1)
+    // {
+    //     line = readline("minishell> ");
+    //     if (!line)
+	// 	{
+	// 		write(1,"exit\n", 5);
+    //         break;
+	// 	}
+    //     if (*line)
+    //         add_history(line);
+    //     free(line);
+    // }
     while (1)
     {
         line = readline("minishell> ");
         if (!line)
-		{
-			write(1,"exit\n", 5);
-            break;
-		}
+        {
+            write(1, "exit\n", 5);
+            break ;
+        }
         if (*line)
+        {
             add_history(line);
+            cmd = parse(line, env_head);
+            if (cmd)
+            {
+                execute(cmd, &env_head);
+                free_cmd(cmd);
+            }
+        }
         free(line);
     }
 	free_env(env_head);

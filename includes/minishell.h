@@ -19,17 +19,6 @@ typedef struct s_env
 	struct s_env	*next;
 }	t_env;
 
-typedef struct s_cmd
-{
-	char			**args;
-	char			*infile; //probably will delete later bc of redirs
-	char			*outfile; //probably will delete later bc of redirs
-	int				append; //probably will delete later bc of redirs
-	int				is_heredoc; //probably will delete later bc of redirs
-	t_redir			*redirs;
-	struct s_cmd	*next;
-}	t_cmd;
-
 typedef enum e_redir_type
 {
     REDIR_IN,
@@ -44,6 +33,17 @@ typedef struct s_redir
     char            *target;
     struct s_redir  *next;
 }   t_redir;
+
+typedef struct s_cmd
+{
+	char			**args;
+	char			*infile; //probably will delete later bc of redirs
+	char			*outfile; //probably will delete later bc of redirs
+	int				append; //probably will delete later bc of redirs
+	int				is_heredoc; //probably will delete later bc of redirs
+	t_redir			*redirs;
+	struct s_cmd	*next;
+}	t_cmd;
 
 /* env_init.c */
 char	*get_env_key(char *environ);
