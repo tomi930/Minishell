@@ -56,6 +56,8 @@ void	exec_cmd(t_cmd *cmd, t_env *env)
 	pid = fork();
 	if (pid == 0)
 	{
+		signal(SIGINT, SIG_DFL);
+		signal(SIGQUIT, SIG_DFL);
 		if (setup_redirections(cmd) == -1)
 			exit(1);
 		path = find_path(cmd->args[0], env);
@@ -70,11 +72,15 @@ void	exec_cmd(t_cmd *cmd, t_env *env)
 		exit(1);
 	}
 	waitpid(pid, &status, 0);
+	if (WIFSIGNALED(status) && WTERMSIG(status) == SIGINT)
+		write(1, "\n", 1);
+	else if (WIFSIGNALED(status) && WTERMSIG(status) == SIGQUIT)
+		write(1, "Quit (core dumped)\n", 19);
 	signals_interactive();
-	if (WIFEXITED(status)) 
-    	g_exit_status = WEXITSTATUS(status);
+	if (WIFEXITED(status))
+		g_exit_status = WEXITSTATUS(status);
 	else if (WIFSIGNALED(status))
-    	g_exit_status = 128 + WTERMSIG(status);
+		g_exit_status = 128 + WTERMSIG(status);
 }  // function needs to be refactored: 28 lines 
 
 void	execute(t_cmd *cmd, t_env **env)

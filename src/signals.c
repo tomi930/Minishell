@@ -17,6 +17,6 @@ void	signals_interactive(void)   // at the prompt
 
 void	signals_exec(void)          // while a child is running
 {
-    signal(SIGINT, SIG_DFL);   // let child handle it naturally
-    signal(SIGQUIT, SIG_DFL);  // Ctrl+\ works normally too
+    signal(SIGINT, SIG_IGN);   // let child handle it naturally
+    signal(SIGQUIT, SIG_IGN);  // Ctrl+\ works normally too
 }
