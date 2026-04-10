@@ -83,6 +83,28 @@ void	exec_cmd(t_cmd *cmd, t_env *env)
 		g_exit_status = 128 + WTERMSIG(status);
 }  // function needs to be refactored: 28 lines 
 
+static void	exec_builtin_with_redirs(t_cmd *cmd, t_env **env)
+{
+	int	saved_in;
+	int	saved_out;
+
+	saved_in = dup(STDIN_FILENO);
+	saved_out = dup(STDOUT_FILENO);
+	if (setup_redirections(cmd) == -1)
+	{
+		dup2(saved_in, STDIN_FILENO);
+		dup2(saved_out, STDOUT_FILENO);
+		close(saved_in);
+		close(saved_out);
+		return ;
+	}
+	g_exit_status = exec_builtin(cmd, env);
+	dup2(saved_in, STDIN_FILENO);
+	dup2(saved_out, STDOUT_FILENO);
+	close(saved_in);
+	close(saved_out);
+}
+
 void	execute(t_cmd *cmd, t_env **env)
 {
 	if (!cmd || !cmd->args || !cmd->args[0])
@@ -90,7 +112,7 @@ void	execute(t_cmd *cmd, t_env **env)
 	if (cmd->next)
 		exec_pipeline(cmd, env);
 	else if (is_builtin(cmd->args[0]))
-		exec_builtin(cmd, env);
+		exec_builtin_with_redirs(cmd, env);
 	else
 		exec_cmd(cmd, *env);
 }

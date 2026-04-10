@@ -49,6 +49,4 @@ int	setup_redirections(t_cmd *cmd)
 		return (-1);
 	return (0);
 }
-
-
 //i'll rewrite it to cover redirection with t_redirs instead of infile/outfile
