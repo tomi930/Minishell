@@ -30,18 +30,25 @@ static void	pipe_child(t_cmd *cmd, t_env **env, int prev_fd, int *pipefd)
 	exit(1);
 }
 
+
 void	exec_pipeline(t_cmd *cmd, t_env **env)
 {
 	int		pipefd[2];
 	int		prev_fd;
+	pid_t	last_pid;
+	pid_t	pid;
+	int		status;
 
 	prev_fd = -1;
+	last_pid = -1;
 	while (cmd)
 	{
 		if (cmd->next)
 			pipe(pipefd);
-		if (fork() == 0)
+		pid = fork();
+		if (pid == 0)
 			pipe_child(cmd, env, prev_fd, pipefd);
+		last_pid = pid;
 		if (prev_fd != -1)
 			close(prev_fd);
 		if (cmd->next)
@@ -51,6 +58,9 @@ void	exec_pipeline(t_cmd *cmd, t_env **env)
 		}
 		cmd = cmd->next;
 	}
-	while (waitpid(-1, NULL, 0) > 0)
-		;
+	while ((pid = waitpid(-1, &status, 0)) > 0)
+	{
+		if (pid == last_pid)
+			g_exit_status = WEXITSTATUS(status);
+	}
 }

@@ -9,8 +9,6 @@ int	builtin_env(t_env *env)
 	{
 		if (current->value)
 			ft_printf("%s=%s\n", current->key, current->value);
-		else
-			ft_printf("%s=\n", current->key);
 		current = current->next;
 	}
 	return (0);
