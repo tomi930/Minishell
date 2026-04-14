@@ -89,7 +89,11 @@ int		builtin_env(t_env *env);
 /* builtin_export.c */
 int		builtin_export(t_cmd *cmd, t_env **env);
 int		builtin_unset(t_cmd *cmd, t_env **env);
+
+/* builtin_pwd.c */
 int		builtin_pwd(void);
+
+/* builtin_exit.c */
 int		builtin_exit(t_cmd *cmd);
 
 /* parsing */

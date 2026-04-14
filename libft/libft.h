@@ -14,6 +14,7 @@ char	*ft_strjoin(char const *s1, char const *s2);
 char	**ft_split(char const *s, char c);
 char	*ft_itoa(int n);
 int		ft_atoi(const char *str);
+long	ft_atol(const char *str);
 void	ft_putstr_fd(char *s, int fd);
 void	ft_putendl_fd(char *s, int fd);
 void	ft_putchar_fd(char c, int fd);

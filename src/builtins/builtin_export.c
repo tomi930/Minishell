@@ -33,42 +33,6 @@ static int	is_valid_identifier(char *s)
 	return (1);
 }
 
-int	builtin_pwd(void)
-{
-	char	*cwd;
-
-	cwd = getcwd(NULL, 0);
-	if (!cwd)
-	{
-		perror("getcwd");
-		return (1);
-	}
-	ft_putendl_fd(cwd, 1);
-	free(cwd);
-	return (0);
-}
-
-int	builtin_exit(t_cmd *cmd)
-{
-	int	exit_code;
-
-	if (cmd->args[1] && cmd->args[2])
-	{
-		ft_putendl_fd("exit: too many arguments", 2);
-		return (1);
-	}
-	if (!cmd->args[1])
-		exit(0);
-	exit_code = ft_atoi(cmd->args[1]);
-	if (exit_code < 0 || exit_code > 255)
-	{
-		ft_putendl_fd("exit: numeric argument required", 2);
-		exit(255);
-	}
-	exit(exit_code);
-	return (0);
-}
-
 int	builtin_unset(t_cmd *cmd, t_env **env)
 {
 	int	i;

@@ -12,6 +12,7 @@ SRCS	=	ft_strcmp.c \
 			ft_split.c \
 			ft_itoa.c \
 			ft_atoi.c \
+			ft_atol.c \
 			ft_putstr_fd.c \
 			ft_putendl_fd.c \
 			ft_putchar_fd.c \
