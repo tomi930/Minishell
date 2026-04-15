@@ -14,7 +14,8 @@ static int	apply_redir_out(t_redir *r)
 	{
 		ft_putstr_fd("minishell: ", 2);
 		ft_putstr_fd(r->target, 2);
-		ft_putendl_fd(": Permission denied", 2);
+		ft_putstr_fd(": ", 2);
+		ft_putendl_fd(strerror(errno), 2);
 		return (-1);
 	}
 	dup2(fd, STDOUT_FILENO);
@@ -33,7 +34,8 @@ static int	apply_redir(t_redir *r)
 		{
 			ft_putstr_fd("minishell: ", 2);
 			ft_putstr_fd(r->target, 2);
-			ft_putendl_fd(": No such file or directory", 2);
+			ft_putstr_fd(": ", 2);
+			ft_putendl_fd(strerror(errno), 2);
 			return (-1);
 		}
 		dup2(fd, STDIN_FILENO);
@@ -53,7 +55,10 @@ int	setup_redirections(t_cmd *cmd)
 	while (r)
 	{
 		if (apply_redir(r) == -1)
+		{
+			g_exit_status = 1;
 			return (-1);
+		}
 		r = r->next;
 	}
 	return (0);

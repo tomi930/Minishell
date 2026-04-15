@@ -9,6 +9,8 @@
 # include <readline/readline.h>
 # include <readline/history.h>
 # include "../libft/libft.h"
+# include <errno.h>
+# include <string.h>
 
 extern int g_exit_status;
 
