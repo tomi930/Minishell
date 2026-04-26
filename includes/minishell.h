@@ -56,6 +56,14 @@ typedef struct s_pipe_ctx
 	int		pipefd[2];
 }	t_pipe_ctx;
 
+typedef struct s_expand
+{
+	char	*out;
+	int		len;
+	int		i;
+	char	quote;
+}	t_expand;
+
 /* env_init.c */
 char	*get_env_key(char *environ);
 char	*get_env_value(char *environ);
@@ -126,5 +134,22 @@ char	**tokenize(char *line);
 void	free_tokens(char **tokens);
 char	*expand_token(const char *token, t_env *env);
 char	*strip_quotes(const char *token);
+int		token_is_space(char c);
+int		token_is_op_char(char c);
+int		add_token(char ***tokens, int *count, int *cap, char *token);
+char	*read_operator(char *line, int *i);
+char	*read_word(char *line, int *i);
+int		parse_is_op(const char *t);
+int		parse_is_redir(const char *t);
+t_cmd	*parse_new_cmd(void);
+int		parse_append_arg(t_cmd *cmd, char *arg);
+int		set_redirection(t_cmd *cmd, char *op, char *target, t_env *env);
+int		is_name_start(char c);
+int		is_name_char(char c);
+int		append_char(t_expand *exp, char c);
+int		append_str(t_expand *exp, const char *s);
+int		append_exp_env(t_expand *exp, const char *token, t_env *env);
+int		token_has_quotes(const char *token);
+char	*read_heredoc(char *delimiter, int expand, t_env *env);
 
 #endif

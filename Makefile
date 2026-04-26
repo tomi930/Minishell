@@ -10,9 +10,17 @@ SRCS	=	src/main.c \
 			src/env/env_set.c \
 			src/env/env_utils.c \
 			src/parsing/tokenizer.c \
+			src/parsing/tokenizer_utils.c \
+			src/parsing/tokenizer_read.c \
 			src/parsing/parser.c \
+			src/parsing/parser_utils.c \
 			src/parsing/quotes.c \
 			src/parsing/expand.c \
+			src/parsing/expand_utils.c \
+			src/parsing/expand_env.c \
+			src/parsing/free_cmd.c \
+			src/parsing/redirection_parse.c \
+			src/parsing/heredoc.c \
 			src/execution/find_path.c \
 			src/execution/execute.c \
 			src/execution/pipes.c \
