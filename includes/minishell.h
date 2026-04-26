@@ -47,6 +47,14 @@ typedef struct s_cmd
 	struct s_cmd	*next;
 }	t_cmd;
 
+typedef struct s_pipe_ctx
+{
+	t_cmd	*head;
+	t_env	**env;
+	int		prev_fd;
+	int		pipefd[2];
+}	t_pipe_ctx;
+
 /* env_init.c */
 char	*get_env_key(char *environ);
 char	*get_env_value(char *environ);
@@ -54,18 +62,23 @@ t_env	*copy_env(char **environ);
 char	*get_env(char *key_string, t_env *head);
 void	free_env(t_env *head);
 
-/* env_utils.c */
+/* env_set.c */
 void	set_env(char *key, char *value, t_env **head);
+
+/* env_utils.c */
 void	remove_env(char *key, t_env **head);
 char	**env_to_array(t_env *head);
+void	free_envp(char **envp);
 
 /* signals.c */
 void	handle_sigint(int sig);
 void	signals_interactive(void);
 void	signals_exec(void);
 
-/* execute.c */
+/* find_path.c */
 char	*find_path(char *cmd, t_env *env);
+
+/* execute.c */
 void	exec_cmd(t_cmd *cmd, t_env *env);
 void	execute(t_cmd *cmd, t_env **env);
 
@@ -74,6 +87,7 @@ void	exec_pipeline(t_cmd *cmd, t_env **env);
 
 /* redirection.c */
 int		setup_redirections(t_cmd *cmd);
+void	apply_redirs_only(t_cmd *cmd);
 
 /* builtins.c */
 int		is_builtin(char *cmd);
@@ -88,15 +102,20 @@ int		builtin_cd(t_cmd *cmd, t_env **env);
 /* builtin_env.c */
 int		builtin_env(t_env *env);
 
+/* export_print.c */
+void	print_export(t_env *env);
+
 /* builtin_export.c */
 int		builtin_export(t_cmd *cmd, t_env **env);
+
+/* builtin_unset.c */
 int		builtin_unset(t_cmd *cmd, t_env **env);
 
 /* builtin_pwd.c */
 int		builtin_pwd(void);
 
 /* builtin_exit.c */
-int		builtin_exit(t_cmd *cmd);
+int		builtin_exit(t_cmd *cmd, t_env **env);
 
 /* parsing */
 t_cmd	*parse(char *line, t_env *env);

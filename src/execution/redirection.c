@@ -63,3 +63,20 @@ int	setup_redirections(t_cmd *cmd)
 	}
 	return (0);
 }
+
+void	apply_redirs_only(t_cmd *cmd)
+{
+	int	saved_in;
+	int	saved_out;
+
+	saved_in = dup(STDIN_FILENO);
+	saved_out = dup(STDOUT_FILENO);
+	if (setup_redirections(cmd) == -1)
+		g_exit_status = 1;
+	else
+		g_exit_status = 0;
+	dup2(saved_in, STDIN_FILENO);
+	dup2(saved_out, STDOUT_FILENO);
+	close(saved_in);
+	close(saved_out);
+}

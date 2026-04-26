@@ -26,7 +26,7 @@ static void	exit_numeric_error(char *arg)
 	exit(2);
 }
 
-int	builtin_exit(t_cmd *cmd)
+int	builtin_exit(t_cmd *cmd, t_env **env)
 {
 	long	exit_code;
 
@@ -35,6 +35,9 @@ int	builtin_exit(t_cmd *cmd)
 		ft_putendl_fd("exit: too many arguments", 2);
 		return (1);
 	}
+	rl_clear_history();
+	free_env(*env);
+	*env = NULL;
 	if (!cmd->args[1])
 		exit(g_exit_status);
 	if (!is_numeric(cmd->args[1]))

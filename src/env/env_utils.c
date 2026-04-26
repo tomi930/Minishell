@@ -1,39 +1,5 @@
 #include "minishell.h"
 
-void	set_env(char *key, char *value, t_env **head)
-{
-	t_env	*current;
-	t_env	*new_node;
-
-	current = *head;
-	while (current)
-	{
-		if (ft_strcmp(key, current->key) == 0)
-		{
-			free(current->value);
-			if (value)
-				current->value = ft_strdup(value);
-			else
-				current->value = NULL;
-			return ;
-		}
-		if (!current->next)
-			break ;
-		current = current->next;
-	}
-	new_node = malloc(sizeof(t_env));
-	new_node->key = ft_strdup(key);
-	if (value)
-		new_node->value = ft_strdup(value);
-	else
-		new_node->value = NULL;
-	new_node->next = NULL;
-	if (current)
-		current->next = new_node;
-	else
-		*head = new_node;
-}
-
 void	remove_env(char *key, t_env **head)
 {
 	t_env	*prev;
@@ -46,7 +12,7 @@ void	remove_env(char *key, t_env **head)
 		if (ft_strcmp(key, current->key) == 0)
 		{
 			if (prev)
-    			prev->next = current->next;
+				prev->next = current->next;
 			else
 				*head = current->next;
 			free(current->key);
@@ -54,6 +20,7 @@ void	remove_env(char *key, t_env **head)
 			free(current);
 			return ;
 		}
+		prev = current;
 		current = current->next;
 	}
 }
@@ -74,34 +41,47 @@ static char	*env_entry(t_env *node)
 	return (result);
 }
 
+static int	count_env(t_env *head)
+{
+	int	count;
+
+	count = 0;
+	while (head)
+	{
+		if (head->value)
+			count++;
+		head = head->next;
+	}
+	return (count);
+}
+
 char	**env_to_array(t_env *head)
 {
 	char	**array;
-	t_env	*current;
-	int		count;
 	int		i;
 
-	count = 0;
-	current = head;
-	while (current)
-	{
-		if (current->value)
-		{
-			count++;
-			current = current->next;
-		}
-		else 
-			current = current->next;
-	}
-	array = malloc(sizeof(char *) * (count + 1));
+	array = malloc(sizeof(char *) * (count_env(head) + 1));
 	if (!array)
 		return (NULL);
 	i = 0;
 	while (head)
 	{
-		array[i++] = env_entry(head);
+		if (head->value)
+			array[i++] = env_entry(head);
 		head = head->next;
 	}
 	array[i] = NULL;
 	return (array);
+}
+
+void	free_envp(char **envp)
+{
+	int	i;
+
+	if (!envp)
+		return ;
+	i = 0;
+	while (envp[i])
+		free(envp[i++]);
+	free(envp);
 }

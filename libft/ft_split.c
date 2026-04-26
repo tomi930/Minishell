@@ -1,3 +1,14 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/* ft_split.c                                           :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: trus <trus@student.42.fr>                  +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/04/25 00:00:00 by trus             #+#    #+#              */
+/*   Updated: 2026/04/25 00:00:00 by trus            ###   ########.fr        */
+/*                                                                            */
+/* ************************************************************************** */
 #include "libft.h"
 
 static int	count_words(char const *s, char c)
@@ -38,6 +49,13 @@ static char	*next_word(char const *s, char c, size_t *len)
 	return (word);
 }
 
+static void	free_result(char **result, int i)
+{
+	while (i-- > 0)
+		free(result[i]);
+	free(result);
+}
+
 char	**ft_split(char const *s, char c)
 {
 	char	**result;
@@ -51,20 +69,15 @@ char	**ft_split(char const *s, char c)
 	result = malloc(sizeof(char *) * (words + 1));
 	if (!result)
 		return (NULL);
-	i = 0;
-	while (i < words)
+	i = -1;
+	while (++i < words)
 	{
 		while (*s == c)
 			s++;
 		result[i] = next_word(s, c, &len);
 		if (!result[i])
-		{
-			while (i-- > 0)
-				free(result[i]);
-			return (free(result), NULL);
-		}
+			return (free_result(result, i), NULL);
 		s += len;
-		i++;
 	}
 	result[words] = NULL;
 	return (result);

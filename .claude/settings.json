@@ -3,7 +3,31 @@
     "allow": [
       "Bash(cmd.exe /c \"python --version\")",
       "Bash(cmd.exe /c \"py --version\")",
-      "Read(//c/Users/Thomas/AppData/Local/Programs//**)"
+      "Read(//c/Users/Thomas/AppData/Local/Programs//**)",
+      "Bash(norminette libft/)",
+      "Bash(timeout 5 ./minishell)",
+      "Bash(echo \"EXIT:$?\")",
+      "Read(//tmp/minishell_eval_tests/**)",
+      "Bash(bash)",
+      "Bash(valgrind --version)",
+      "Bash(timeout 30 valgrind --leak-check=full --show-leak-kinds=definite --error-exitcode=42 ./minishell)",
+      "Bash(bash -c 'echo -nnnn hello')",
+      "Bash(timeout 30 valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=42 ./minishell)",
+      "Bash(timeout 30 valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./minishell)",
+      "Bash(grep -v \"^--$\")",
+      "Bash(timeout 30 valgrind --leak-check=full --show-leak-kinds=all ./minishell)",
+      "Bash(timeout 30 valgrind --leak-check=full --show-leak-kinds=definite --track-fds=yes ./minishell)",
+      "Bash(/tmp/check_fds)",
+      "Bash(timeout 30 valgrind --track-fds=all ./minishell)",
+      "Bash(bash -c 'echo ${USER}')",
+      "Bash(bash -c 'echo $$')",
+      "Bash(valgrind --leak-check=full --show-leak-kinds=all ./minishell)",
+      "Bash(valgrind --leak-check=full --show-leak-kinds=all --trace-children=yes ./minishell)",
+      "Bash(make)",
+      "Bash(awk '/LEAK SUMMARY/{p=1} p{print; if\\(/ERROR SUMMARY/\\) p=0}')"
+    ],
+    "additionalDirectories": [
+      "/tmp/minishell_eval_tests"
     ]
   }
 }

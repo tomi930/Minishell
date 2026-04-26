@@ -1,82 +1,5 @@
 #include "minishell.h"
 
-static int	env_count(t_env *env)
-{
-	int	count;
-
-	count = 0;
-	while (env)
-	{
-		count++;
-		env = env->next;
-	}
-	return (count);
-}
-
-static t_env	**env_to_sorted_array(t_env *env, int count)
-{
-	t_env	**arr;
-	t_env	*tmp;
-	int		i;
-	int		j;
-
-	arr = malloc(sizeof(t_env *) * count);
-	if (!arr)
-		return (NULL);
-	i = 0;
-	while (i < count && env)
-	{
-		arr[i++] = env;
-		env = env->next;
-	}
-	i = 0;
-	while (i < count - 1)
-	{
-		j = 0;
-		while (j < count - i - 1)
-		{
-			if (ft_strcmp(arr[j]->key, arr[j + 1]->key) > 0)
-			{
-				tmp = arr[j];
-				arr[j] = arr[j + 1];
-				arr[j + 1] = tmp;
-			}
-			j++;
-		}
-		i++;
-	}
-	return (arr);
-}
-
-static void	print_env_entry(t_env *e)
-{
-	ft_putstr_fd("export ", 1);
-	ft_putstr_fd(e->key, 1);
-	if (e->value)
-	{
-		ft_putstr_fd("=\"", 1);
-		ft_putstr_fd(e->value, 1);
-		ft_putstr_fd("\"", 1);
-	}
-	ft_putchar_fd('\n', 1);
-}
-
-static void	print_export(t_env *env)
-{
-	t_env	**arr;
-	int		count;
-	int		i;
-
-	count = env_count(env);
-	arr = env_to_sorted_array(env, count);
-	if (!arr)
-		return ;
-	i = 0;
-	while (i < count)
-		print_env_entry(arr[i++]);
-	free(arr);
-}
-
 static int	is_valid_identifier(char *s)
 {
 	int	i;
@@ -93,25 +16,26 @@ static int	is_valid_identifier(char *s)
 	return (1);
 }
 
-int	builtin_unset(t_cmd *cmd, t_env **env)
+static void	set_export_var(char *arg, t_env **env)
 {
-	int	i;
+	char	*eq;
+	char	*key;
 
-	i = 1;
-	while (cmd->args[i])
+	eq = ft_strchr(arg, '=');
+	if (eq)
 	{
-		remove_env(cmd->args[i], env);
-		i++;
+		key = ft_substr(arg, 0, eq - arg);
+		set_env(key, eq + 1, env);
+		free(key);
 	}
-	return (0);
+	else
+		set_env(arg, NULL, env);
 }
 
 int	builtin_export(t_cmd *cmd, t_env **env)
 {
-	char	*eq;
-	char	*key;
-	int		i;
-	int		ret;
+	int	i;
+	int	ret;
 
 	if (!cmd->args[1])
 		return (print_export(*env), 0);
@@ -126,20 +50,8 @@ int	builtin_export(t_cmd *cmd, t_env **env)
 			ret = 1;
 		}
 		else
-		{
-			eq = ft_strchr(cmd->args[i], '=');
-			if (eq)
-			{
-				key = ft_substr(cmd->args[i], 0, eq - cmd->args[i]);
-				set_env(key, eq + 1, env);
-				free(key);
-			}
-			else
-				set_env(cmd->args[i], NULL, env);
-		}
+			set_export_var(cmd->args[i], env);
 		i++;
 	}
 	return (ret);
 }
-
-//needs refactoring

@@ -7,11 +7,13 @@ IFLAGS	= -Iincludes -Ilibft
 SRCS	=	src/main.c \
 			src/signals.c \
 			src/env/env_init.c \
+			src/env/env_set.c \
 			src/env/env_utils.c \
 			src/parsing/tokenizer.c \
 			src/parsing/parser.c \
 			src/parsing/quotes.c \
 			src/parsing/expand.c \
+			src/execution/find_path.c \
 			src/execution/execute.c \
 			src/execution/pipes.c \
 			src/execution/redirection.c \
@@ -19,7 +21,9 @@ SRCS	=	src/main.c \
 			src/builtins/builtin_cd.c \
 			src/builtins/builtin_echo.c \
 			src/builtins/builtin_env.c \
+			src/builtins/export_print.c \
 			src/builtins/builtin_export.c \
+			src/builtins/builtin_unset.c \
 			src/builtins/builtin_pwd.c \
 			src/builtins/builtin_exit.c
 

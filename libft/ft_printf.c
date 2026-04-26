@@ -1,3 +1,14 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/* ft_printf.c                                          :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: trus <trus@student.42.fr>                  +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/04/25 00:00:00 by trus             #+#    #+#              */
+/*   Updated: 2026/04/25 00:00:00 by trus            ###   ########.fr        */
+/*                                                                            */
+/* ************************************************************************** */
 #include "libft.h"
 
 static int	print_str(char *s)
@@ -22,6 +33,25 @@ static int	print_int(int n)
 	return (len);
 }
 
+static int	handle_format(char c, va_list *args)
+{
+	if (c == 's')
+		return (print_str(va_arg(*args, char *)));
+	if (c == 'd' || c == 'i')
+		return (print_int(va_arg(*args, int)));
+	if (c == 'c')
+	{
+		ft_putchar_fd((char)va_arg(*args, int), 1);
+		return (1);
+	}
+	if (c == '%')
+	{
+		ft_putchar_fd('%', 1);
+		return (1);
+	}
+	return (0);
+}
+
 int	ft_printf(const char *fmt, ...)
 {
 	va_list	args;
@@ -34,20 +64,7 @@ int	ft_printf(const char *fmt, ...)
 		if (*fmt == '%' && *(fmt + 1))
 		{
 			fmt++;
-			if (*fmt == 's')
-				total += print_str(va_arg(args, char *));
-			else if (*fmt == 'd' || *fmt == 'i')
-				total += print_int(va_arg(args, int));
-			else if (*fmt == 'c')
-			{
-				ft_putchar_fd((char)va_arg(args, int), 1);
-				total++;
-			}
-			else if (*fmt == '%')
-			{
-				ft_putchar_fd('%', 1);
-				total++;
-			}
+			total += handle_format(*fmt, &args);
 		}
 		else
 		{

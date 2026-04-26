@@ -1,76 +1,47 @@
 #include "minishell.h"
 
-static void	free_array(char **array)
+static void	child_exit(t_cmd *cmd, t_env *env, int code)
 {
-	int	i;
-
-	i = 0;
-	while (array[i])
-		free(array[i++]);
-	free(array);
+	rl_clear_history();
+	if (env)
+		free_env(env);
+	free_cmd(cmd);
+	exit(code);
 }
 
-static char	*try_paths(char *cmd, char **paths)
+static void	child_exec(t_cmd *cmd, t_env *env)
 {
-	char	*tmp;
-	char	*full;
-	int		i;
+	char	**envp;
+	char	*path;
 
-	i = 0;
-	while (paths[i])
+	signal(SIGINT, SIG_DFL);
+	signal(SIGQUIT, SIG_DFL);
+	if (setup_redirections(cmd) == -1)
+		child_exit(cmd, env, 1);
+	path = find_path(cmd->args[0], env);
+	if (!path)
 	{
-		tmp = ft_strjoin(paths[i], "/");
-		full = ft_strjoin(tmp, cmd);
-		free(tmp);
-		if (access(full, X_OK) == 0)
-			return (full);
-		free(full);
-		i++;
+		ft_putstr_fd("minishell: command not found: ", 2);
+		ft_putendl_fd(cmd->args[0], 2);
+		child_exit(cmd, env, 127);
 	}
-	return (NULL);
-}
-
-char	*find_path(char *cmd, t_env *env)
-{
-	char	**paths;
-	char	*result;
-
-	if (ft_strchr(cmd, '/'))
-		return (ft_strdup(cmd));
-	paths = ft_split(get_env("PATH", env), ':');
-	if (!paths)
-		return (NULL);
-	result = try_paths(cmd, paths);
-	free_array(paths);
-	return (result);
+	envp = env_to_array(env);
+	free_env(env);
+	execve(path, cmd->args, envp);
+	free(path);
+	free_envp(envp);
+	child_exit(cmd, NULL, 1);
 }
 
 void	exec_cmd(t_cmd *cmd, t_env *env)
 {
-	char	**envp;
-	char	*path;
 	pid_t	pid;
 	int		status;
 
 	signals_exec();
 	pid = fork();
 	if (pid == 0)
-	{
-		signal(SIGINT, SIG_DFL);
-		signal(SIGQUIT, SIG_DFL);
-		if (setup_redirections(cmd) == -1)
-			exit(1);
-		path = find_path(cmd->args[0], env);
-		if (!path)
-		{
-			ft_putstr_fd("minishell: command not found: ", 2);
-			ft_putendl_fd(cmd->args[0], 2);
-			exit(127);
-		}
-		envp = env_to_array(env);
-		execve(path, cmd->args, envp);
-		exit(1);
-	}
+		child_exec(cmd, env);
 	waitpid(pid, &status, 0);
 	if (WIFSIGNALED(status) && WTERMSIG(status) == SIGINT)
 		write(1, "\n", 1);
@@ -81,23 +52,6 @@ void	exec_cmd(t_cmd *cmd, t_env *env)
 		g_exit_status = WEXITSTATUS(status);
 	else if (WIFSIGNALED(status))
 		g_exit_status = 128 + WTERMSIG(status);
-}  // function needs to be refactored: 28 lines 
-
-static void	apply_redirs_only(t_cmd *cmd)
-{
-	int	saved_in;
-	int	saved_out;
-
-	saved_in = dup(STDIN_FILENO);
-	saved_out = dup(STDOUT_FILENO);
-	if (setup_redirections(cmd) == -1)
-		g_exit_status = 1;
-	else
-		g_exit_status = 0;
-	dup2(saved_in, STDIN_FILENO);
-	dup2(saved_out, STDOUT_FILENO);
-	close(saved_in);
-	close(saved_out);
 }
 
 static void	exec_builtin_with_redirs(t_cmd *cmd, t_env **env)
