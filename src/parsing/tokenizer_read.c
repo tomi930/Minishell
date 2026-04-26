@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   expand.c                                           :+:      :+:    :+:   */
+/*   tokenizer_read.c                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: hrrokaj <hrrokaj@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -12,44 +12,41 @@
 
 #include "minishell.h"
 
-static int	handle_quote(t_expand *exp, const char *token)
+char	*read_operator(char *line, int *i)
 {
-	if (!exp->quote && (token[exp->i] == '\'' || token[exp->i] == '"'))
+	char	*token;
+
+	if ((line[*i] == '<' && line[*i + 1] == '<')
+		|| (line[*i] == '>' && line[*i + 1] == '>'))
 	{
-		exp->quote = token[exp->i];
-		exp->i++;
-		return (1);
+		token = ft_substr(line, *i, 2);
+		*i += 2;
 	}
-	if (exp->quote && token[exp->i] == exp->quote)
+	else
 	{
-		exp->quote = 0;
-		exp->i++;
-		return (1);
+		token = ft_substr(line, *i, 1);
+		(*i)++;
 	}
-	return (0);
+	return (token);
 }
 
-char	*expand_token(const char *token, t_env *env)
+char	*read_word(char *line, int *i)
 {
-	t_expand	exp;
+	int		start;
+	char	quote;
 
-	exp.out = NULL;
-	exp.len = 0;
-	exp.i = 0;
-	exp.quote = 0;
-	while (token[exp.i])
+	start = *i;
+	quote = 0;
+	while (line[*i])
 	{
-		if (handle_quote(&exp, token))
-			continue ;
-		if (token[exp.i] == '$' && exp.quote != '\'')
-		{
-			if (!append_exp_env(&exp, token, env))
-				return (free(exp.out), NULL);
-		}
-		else if (!append_char(&exp, token[exp.i++]))
-			return (free(exp.out), NULL);
+		if (!quote && (line[*i] == '\'' || line[*i] == '"'))
+			quote = line[*i];
+		else if (quote && line[*i] == quote)
+			quote = 0;
+		else if (!quote
+			&& (token_is_space(line[*i]) || token_is_op_char(line[*i])))
+			break ;
+		(*i)++;
 	}
-	if (!exp.out)
-		exp.out = ft_strdup("");
-	return (exp.out);
+	return (ft_substr(line, start, *i - start));
 }

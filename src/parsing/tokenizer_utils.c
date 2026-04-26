@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   expand.c                                           :+:      :+:    :+:   */
+/*   tokenizer_utils.c                                  :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: hrrokaj <hrrokaj@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -12,44 +12,38 @@
 
 #include "minishell.h"
 
-static int	handle_quote(t_expand *exp, const char *token)
+int	token_is_space(char c)
 {
-	if (!exp->quote && (token[exp->i] == '\'' || token[exp->i] == '"'))
-	{
-		exp->quote = token[exp->i];
-		exp->i++;
-		return (1);
-	}
-	if (exp->quote && token[exp->i] == exp->quote)
-	{
-		exp->quote = 0;
-		exp->i++;
-		return (1);
-	}
-	return (0);
+	return (c == ' ' || c == '\t' || c == '\n'
+		|| c == '\r' || c == '\v' || c == '\f');
 }
 
-char	*expand_token(const char *token, t_env *env)
+int	token_is_op_char(char c)
 {
-	t_expand	exp;
+	return (c == '|' || c == '<' || c == '>');
+}
 
-	exp.out = NULL;
-	exp.len = 0;
-	exp.i = 0;
-	exp.quote = 0;
-	while (token[exp.i])
+int	add_token(char ***tokens, int *count, int *cap, char *token)
+{
+	char	**new_tokens;
+	int		i;
+
+	if (*count + 1 >= *cap)
 	{
-		if (handle_quote(&exp, token))
-			continue ;
-		if (token[exp.i] == '$' && exp.quote != '\'')
+		*cap *= 2;
+		new_tokens = malloc(sizeof(char *) * (*cap));
+		if (!new_tokens)
+			return (free(token), 0);
+		i = 0;
+		while (i < *count)
 		{
-			if (!append_exp_env(&exp, token, env))
-				return (free(exp.out), NULL);
+			new_tokens[i] = (*tokens)[i];
+			i++;
 		}
-		else if (!append_char(&exp, token[exp.i++]))
-			return (free(exp.out), NULL);
+		free(*tokens);
+		*tokens = new_tokens;
 	}
-	if (!exp.out)
-		exp.out = ft_strdup("");
-	return (exp.out);
+	(*tokens)[(*count)++] = token;
+	(*tokens)[*count] = NULL;
+	return (1);
 }

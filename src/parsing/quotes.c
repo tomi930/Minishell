@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   quotes.c                                           :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: hrrokaj <hrrokaj@student.42.fr>            +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/04/26 00:00:00 by hrrokaj           #+#    #+#             */
+/*   Updated: 2026/04/26 00:00:00 by hrrokaj          ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "minishell.h"
 
 int	has_unclosed_quotes(const char *line)
@@ -41,4 +53,15 @@ char	*strip_quotes(const char *token)
 	}
 	result[j] = '\0';
 	return (result);
+}
+
+int	token_has_quotes(const char *token)
+{
+	while (*token)
+	{
+		if (*token == '\'' || *token == '"')
+			return (1);
+		token++;
+	}
+	return (0);
 }

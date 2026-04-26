@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   expand.c                                           :+:      :+:    :+:   */
+/*   free_cmd.c                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: hrrokaj <hrrokaj@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -12,44 +12,45 @@
 
 #include "minishell.h"
 
-static int	handle_quote(t_expand *exp, const char *token)
+static void	free_redirs(t_redir *redir)
 {
-	if (!exp->quote && (token[exp->i] == '\'' || token[exp->i] == '"'))
+	t_redir	*next_redir;
+
+	while (redir)
 	{
-		exp->quote = token[exp->i];
-		exp->i++;
-		return (1);
+		next_redir = redir->next;
+		if (redir->type == REDIR_HEREDOC)
+			unlink(redir->target);
+		free(redir->target);
+		free(redir);
+		redir = next_redir;
 	}
-	if (exp->quote && token[exp->i] == exp->quote)
-	{
-		exp->quote = 0;
-		exp->i++;
-		return (1);
-	}
-	return (0);
 }
 
-char	*expand_token(const char *token, t_env *env)
+static void	free_args(char **args)
 {
-	t_expand	exp;
+	int	i;
 
-	exp.out = NULL;
-	exp.len = 0;
-	exp.i = 0;
-	exp.quote = 0;
-	while (token[exp.i])
+	if (!args)
+		return ;
+	i = 0;
+	while (args[i])
+		free(args[i++]);
+	free(args);
+}
+
+void	free_cmd(t_cmd *cmd)
+{
+	t_cmd	*next;
+
+	while (cmd)
 	{
-		if (handle_quote(&exp, token))
-			continue ;
-		if (token[exp.i] == '$' && exp.quote != '\'')
-		{
-			if (!append_exp_env(&exp, token, env))
-				return (free(exp.out), NULL);
-		}
-		else if (!append_char(&exp, token[exp.i++]))
-			return (free(exp.out), NULL);
+		next = cmd->next;
+		free_redirs(cmd->redirs);
+		free_args(cmd->args);
+		free(cmd->infile);
+		free(cmd->outfile);
+		free(cmd);
+		cmd = next;
 	}
-	if (!exp.out)
-		exp.out = ft_strdup("");
-	return (exp.out);
 }

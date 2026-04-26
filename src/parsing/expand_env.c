@@ -1,7 +1,7 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   expand.c                                           :+:      :+:    :+:   */
+/*   expand_env.c                                       :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: hrrokaj <hrrokaj@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
@@ -12,44 +12,41 @@
 
 #include "minishell.h"
 
-static int	handle_quote(t_expand *exp, const char *token)
+static int	append_status(t_expand *exp)
 {
-	if (!exp->quote && (token[exp->i] == '\'' || token[exp->i] == '"'))
-	{
-		exp->quote = token[exp->i];
-		exp->i++;
-		return (1);
-	}
-	if (exp->quote && token[exp->i] == exp->quote)
-	{
-		exp->quote = 0;
-		exp->i++;
-		return (1);
-	}
-	return (0);
+	char	*status;
+	int		ok;
+
+	exp->i += 2;
+	status = ft_itoa(g_exit_status);
+	if (!status)
+		return (0);
+	ok = append_str(exp, status);
+	free(status);
+	return (ok);
 }
 
-char	*expand_token(const char *token, t_env *env)
+int	append_exp_env(t_expand *exp, const char *token, t_env *env)
 {
-	t_expand	exp;
+	int		start;
+	char	*key;
+	char	*value;
 
-	exp.out = NULL;
-	exp.len = 0;
-	exp.i = 0;
-	exp.quote = 0;
-	while (token[exp.i])
+	if (token[exp->i + 1] == '?')
+		return (append_status(exp));
+	if (!is_name_start(token[exp->i + 1]))
 	{
-		if (handle_quote(&exp, token))
-			continue ;
-		if (token[exp.i] == '$' && exp.quote != '\'')
-		{
-			if (!append_exp_env(&exp, token, env))
-				return (free(exp.out), NULL);
-		}
-		else if (!append_char(&exp, token[exp.i++]))
-			return (free(exp.out), NULL);
+		exp->i++;
+		return (append_char(exp, '$'));
 	}
-	if (!exp.out)
-		exp.out = ft_strdup("");
-	return (exp.out);
+	exp->i++;
+	start = exp->i;
+	while (token[exp->i] && is_name_char(token[exp->i]))
+		exp->i++;
+	key = ft_substr(token, start, exp->i - start);
+	if (!key)
+		return (0);
+	value = get_env(key, env);
+	free(key);
+	return (append_str(exp, value));
 }
