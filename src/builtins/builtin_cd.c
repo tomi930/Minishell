@@ -2,9 +2,7 @@
 
 static int	cd_error(char *path)
 {
-	ft_putstr_fd("minishell: cd: ", 2);
-	ft_putstr_fd(path, 2);
-	ft_putendl_fd(": No such file or directory", 2);
+	errmsg("minishell: cd", path, strerror(errno));
 	return (1);
 }
 

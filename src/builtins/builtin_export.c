@@ -45,8 +45,7 @@ int	builtin_export(t_cmd *cmd, t_env **env)
 	{
 		if (!is_valid_identifier(cmd->args[i]))
 		{
-			ft_putstr_fd("export: not a valid identifier: ", 2);
-			ft_putendl_fd(cmd->args[i], 2);
+			errmsg("export", cmd->args[i], "not a valid identifier");
 			ret = 1;
 		}
 		else

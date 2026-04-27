@@ -8,45 +8,32 @@ static void	pipe_exec(t_cmd *cmd, t_pipe_ctx *ctx)
 	path = find_path(cmd->args[0], *(ctx->env));
 	if (!path)
 	{
-		ft_putstr_fd("minishell: command not found: ", 2);
-		ft_putendl_fd(cmd->args[0], 2);
-		rl_clear_history();
-		free_env(*(ctx->env));
-		free_cmd(ctx->head);
-		exit(127);
+		errmsg("minishell", cmd->args[0], "command not found");
+		pipe_exit(ctx, 127);
 	}
 	envp = env_to_array(*(ctx->env));
 	free_env(*(ctx->env));
 	execve(path, cmd->args, envp);
+	errno = execve_errno(path);
+	errmsg("minishell", cmd->args[0], strerror(errno));
 	free(path);
 	free_envp(envp);
-	rl_clear_history();
-	free_cmd(ctx->head);
-	exit(1);
+	if (errno == ENOENT)
+		pipe_exit(ctx, 127);
+	pipe_exit(ctx, 126);
 }
 
 static void	pipe_child(t_cmd *cmd, t_pipe_ctx *ctx)
 {
 	int	ret;
 
-	if (ctx->prev_fd != -1)
-		dup2(ctx->prev_fd, STDIN_FILENO);
-	if (cmd->next)
-	{
-		close(ctx->pipefd[0]);
-		dup2(ctx->pipefd[1], STDOUT_FILENO);
-		close(ctx->pipefd[1]);
-	}
-	if (ctx->prev_fd != -1)
-		close(ctx->prev_fd);
-	setup_redirections(cmd);
+	pipe_setup_fds(cmd, ctx);
+	if (setup_redirections(cmd) == -1)
+		pipe_exit(ctx, 1);
 	if (is_builtin(cmd->args[0]))
 	{
 		ret = exec_builtin(cmd, ctx->env);
-		rl_clear_history();
-		free_env(*(ctx->env));
-		free_cmd(ctx->head);
-		exit(ret);
+		pipe_exit(ctx, ret);
 	}
 	pipe_exec(cmd, ctx);
 }

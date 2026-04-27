@@ -5,6 +5,7 @@ CFLAGS	= -Wall -Wextra -Werror
 IFLAGS	= -Iincludes -Ilibft
 
 SRCS	=	src/main.c \
+			src/error.c \
 			src/signals.c \
 			src/env/env_init.c \
 			src/env/env_set.c \
@@ -24,6 +25,7 @@ SRCS	=	src/main.c \
 			src/execution/find_path.c \
 			src/execution/execute.c \
 			src/execution/pipes.c \
+			src/execution/pipes_utils.c \
 			src/execution/redirection.c \
 			src/builtins/builtins.c \
 			src/builtins/builtin_cd.c \

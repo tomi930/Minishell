@@ -21,16 +21,19 @@ static void	child_exec(t_cmd *cmd, t_env *env)
 	path = find_path(cmd->args[0], env);
 	if (!path)
 	{
-		ft_putstr_fd("minishell: command not found: ", 2);
-		ft_putendl_fd(cmd->args[0], 2);
+		errmsg("minishell", cmd->args[0], "command not found");
 		child_exit(cmd, env, 127);
 	}
 	envp = env_to_array(env);
 	free_env(env);
 	execve(path, cmd->args, envp);
+	errno = execve_errno(path);
+	errmsg("minishell", cmd->args[0], strerror(errno));
 	free(path);
 	free_envp(envp);
-	child_exit(cmd, NULL, 1);
+	if (errno == ENOENT)
+		child_exit(cmd, NULL, 127);
+	child_exit(cmd, NULL, 126);
 }
 
 void	exec_cmd(t_cmd *cmd, t_env *env)

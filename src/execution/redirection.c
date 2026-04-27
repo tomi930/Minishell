@@ -12,10 +12,7 @@ static int	apply_redir_out(t_redir *r)
 	fd = open(r->target, flags, 0644);
 	if (fd == -1)
 	{
-		ft_putstr_fd("minishell: ", 2);
-		ft_putstr_fd(r->target, 2);
-		ft_putstr_fd(": ", 2);
-		ft_putendl_fd(strerror(errno), 2);
+		errmsg("minishell", r->target, strerror(errno));
 		return (-1);
 	}
 	dup2(fd, STDOUT_FILENO);
@@ -32,10 +29,7 @@ static int	apply_redir(t_redir *r)
 		fd = open(r->target, O_RDONLY);
 		if (fd == -1)
 		{
-			ft_putstr_fd("minishell: ", 2);
-			ft_putstr_fd(r->target, 2);
-			ft_putstr_fd(": ", 2);
-			ft_putendl_fd(strerror(errno), 2);
+			errmsg("minishell", r->target, strerror(errno));
 			return (-1);
 		}
 		dup2(fd, STDIN_FILENO);

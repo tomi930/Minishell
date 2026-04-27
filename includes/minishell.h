@@ -9,6 +9,7 @@
 # include <signal.h>
 # include <errno.h>
 # include <string.h>
+# include <sys/stat.h>
 # include <readline/readline.h>
 # include <readline/history.h>
 # include "../libft/libft.h"
@@ -64,6 +65,10 @@ typedef struct s_expand
 	char	quote;
 }	t_expand;
 
+/* error.c */
+void	errmsg(char *prefix, char *name, char *suffix);
+int		execve_errno(char *path);
+
 /* env_init.c */
 char	*get_env_key(char *environ);
 char	*get_env_value(char *environ);
@@ -93,6 +98,10 @@ void	execute(t_cmd *cmd, t_env **env);
 
 /* pipes.c */
 void	exec_pipeline(t_cmd *cmd, t_env **env);
+
+/* pipes_utils.c */
+void	pipe_exit(t_pipe_ctx *ctx, int code);
+void	pipe_setup_fds(t_cmd *cmd, t_pipe_ctx *ctx);
 
 /* redirection.c */
 int		setup_redirections(t_cmd *cmd);

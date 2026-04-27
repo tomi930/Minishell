@@ -20,9 +20,7 @@ static int	is_numeric(char *arg)
 
 static void	exit_numeric_error(char *arg)
 {
-	ft_putstr_fd("exit: ", 2);
-	ft_putstr_fd(arg, 2);
-	ft_putendl_fd(": numeric argument required", 2);
+	errmsg("exit", arg, "numeric argument required");
 	exit(2);
 }
 
