@@ -61,7 +61,11 @@ static int	parse_token(char **tokens, int *i, t_cmd **cur, t_env *env)
 	else
 	{
 		arg = expand_token(tokens[(*i)++], env);
-		if (!arg || !parse_append_arg(*cur, arg))
+		if (!arg)
+			return (0);
+		if (arg[0] == '\0')
+			return (free(arg), 1);
+		if (!parse_append_arg(*cur, arg))
 			return (free(arg), 0);
 	}
 	return (1);

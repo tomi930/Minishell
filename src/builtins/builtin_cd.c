@@ -19,6 +19,11 @@ int	builtin_cd(t_cmd *cmd, t_env **env)
 {
 	char	*path;
 
+	if (cmd->args[1] && cmd->args[2])
+	{
+		ft_putendl_fd("minishell: cd: too many arguments", 2);
+		return (1);
+	}
 	if (!cmd->args[1])
 		path = get_env("HOME", *env);
 	else
